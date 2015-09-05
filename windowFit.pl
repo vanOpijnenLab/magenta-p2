@@ -2,12 +2,12 @@
 
 #Margaret Antonio 15.04.11
 
-#VERSION 14: Added two new options onto version 12: 1)--txt s ouputs a textfile of the data, could be bed file and 2)--txtg groups consecutive windows of same fitness into one text file (or bed) and ouputs [start,end,fitness,count] (of course, end is adjusted to last window added and count is cummulative across all windows that fit into the cumulative. 3)made 4 different output options (optional) wig,csv,txt,or txtg
+#VERSION 15: Change wig line[0] from start to mid.
 
 #Compiled the .csv files using mergeCSV.pl and then sorted them by GNU sort in terminal from /results/
 # $ sort -t, -k1 -n compiledPennG.csv > sortedCompiledPennG.csv
 
-#../script/windowFit14.pl --ref=NC_003028b2.gbk --cutoff 15 --in results/sortedCompiledPennG.csv --csv windowFit/14B.csv --step 10 --size 500 --txtg ../viewer/14Bgrouped.txt --txt ../viewer/14B.txt --wig 14B.wig
+#../script/windowFit15.pl --ref=NC_003028b2.gbk --cutoff 15 --in results/test.csv  --step 10 --size 500  --wig 15A.wig --stat --indiv fitIndivMut.wig
 
 use strict;
 use Getopt::Long;
@@ -33,8 +33,9 @@ sub print_usage() {
 }
 
 #ASSIGN INPUTS TO VARIABLES
-our ($txt,$txtg,$cutoff,$wig,$ref_genome,$infile, $csv, $step, $size);
+our ($stat,$indiv,$txt,$txtg,$cutoff,$wig,$ref_genome,$infile, $csv, $step, $size);
 GetOptions(
+'indiv:s'=>\$indiv,
 'wig:s' => \$wig,
 'ref:s' => \$ref_genome,
 'cutoff:i'=>\$cutoff,
@@ -44,6 +45,7 @@ GetOptions(
 'size:i' => \$size,
 'txtg:s' => \$txtg,
 'txt:s' => \$txt,
+'stat'=>\$stat,
 
 );
 
@@ -58,6 +60,7 @@ print "Input file: ", $infile,"\n";
 if ($csv){print "Output file: ", $csv,"\n";}
 if ($txt){print "Text file for window data: $txt\n";}
 if ($txtg){print "Text file for grouped windows: $txtg\n";}
+if ($indiv){print "wig file for individual insertion mutants: $indiv\n";}
 
 
 #CHECKING PARAMETERS: Check to make sure required option inputs are there and if not then assign default
@@ -68,7 +71,7 @@ print "Window size: $size\n";
 print "Step value: $step\n";
 print "Cutoff: $cutoff\n";
 
-if ((!$csv) and (!$txt) and (!$txtg) and (!$wig)) {
+if ((!$csv) and (!$txt) and (!$txtg) and (!$wig) and (!$indiv)) {
     print "\nThere must be some kind of output file assigned (--csv, --txt, or --txtg)\n";
     print_usage();
     die;
@@ -90,7 +93,7 @@ my $rowCount=-1;
 my $last;
 while (my $line = $csvIN->getline($fh)){      #While there is data in the line
     my $w = $line->[12];
-    #if ($w and $w eq 'nW') {next;}
+    if ($w eq 'nW') {next;}
     if (!$w){next;} # For blanks
     else{
         my $c1 = $line->[2];
@@ -109,6 +112,75 @@ while (my $line = $csvIN->getline($fh)){      #While there is data in the line
 close $fh;
 print "Finished input array ",get_time(),"\n\n";
 
+if ($stat){
+    
+    my $before=0;
+    my $insertion=0;
+    
+    foreach my $lines(@data){
+        my @line=@$lines;
+        if ($line[0]!=$before){
+            $insertion++;}
+        $before=$line[0];
+    }
+    print "\nNumber of insertion sites in the genome: $insertion\n\n";
+}
+
+
+
+if ($indiv){
+    
+    my @cummIndiv=();
+    my $cummIndiv=\@cummIndiv;
+    my $done=-1;
+    
+    #MAKE WIG FILE---->later make BW--->IGV
+    #fix this so single insertion sites
+    print "Start individual mutant wig file creation: ",get_time(),"\n";
+    my $in = Bio::SeqIO->new(-file=>$ref_genome);
+    my $refseq = $in->next_seq;
+    my $refname = $refseq->id;
+    open INWIG, ">$indiv";
+    print INWIG "track type=wiggle_0 name=$wig\n";
+    print INWIG "variableStep chrom=$refname\n";
+    
+    my $tempCount=0;
+    my $Wsum=0;
+    my @wholeWig;
+    for my $line(@data){
+        my @field=@$line;
+        my $nW=$field[12];
+        #if (!$nW){next;}
+        if (!@cummIndiv or $done=-1){
+            @cummIndiv=@field;
+            $Wsum=$field[12];
+            $tempCount=1;
+            
+        }
+        else{
+            if ($cummIndiv[0]==$field[0]){
+                $tempCount++;
+                $Wsum+=$field[12];
+                next;
+            }
+            else{
+                
+                my $avg=$Wsum/$tempCount;
+                my @indivPos=($cummIndiv[0], $avg);
+                my $indivPos=\@indivPos;
+                print INWIG $cummIndiv[0]," ",$avg,"\n";
+                $Wsum=0;$tempCount=0;
+                $done=-1;
+            }
+            
+        }
+    }
+    
+    close INWIG;
+    print "End individual mutant wig file creation: ",get_time(),"\n\n";
+    print "If this wig file needs to be converted to a Big Wig, then use USCS program wigToBigWig in terminal: \n \t./wigToBigWig gview/12G.wig organism.txt BigWig/output.bw \n\n";
+}
+
 my $index=-1;
 my $marker=0;
 
@@ -125,10 +197,10 @@ sub OneWindow{
         if ($fields[0]<($Wstart+$step)){
             $index++;
         }
-        if ($fields[0]<$Wstart){  #if deleted, error shows up
+        if ($fields[0]<$Wstart){  #shouldn't need this if marker works
             next;
         }
-        if ($fields[0]<=$Wend){
+        elsif ($fields[0]<=$Wend){
             if ($fields[0]<=($Wstart+$step)) {$marker=$index;}
             $Wsum+=$fields[1];
             $Wcount+=1;
@@ -190,12 +262,9 @@ if ($wig){
     print WIG "variableStep chrom=$refname\n";
     foreach my $wigLine(@allWindows){
         my @wigFields=@$wigLine;
-        my $position=$wigFields[0];
-        #while ($position<=$wigFields[1]){
-        print WIG $position," ",$wigFields[2],"\n";
-        #$position=$position+1;
-        #}
-        #print  WIG $wigFields[0]," ",$wigFields[2],"\n";
+        my $mid=($wigFields[1]+$wigFields[0])/2;
+        print WIG $mid," ",$wigFields[2],"\n";
+        
     }
     close WIG;
     print "End wig file creation: ",get_time(),"\n\n";
@@ -244,10 +313,11 @@ if ($txtg){
         }
     }
     close $TXTg;
+    
     print "End grouped text file creation: ",get_time(),"\n\n";
-    if ($txt or $txtg){
-        print "\nTo make a BigBed file from this text file, rename file to .bed and use USCS program bedToBigBed in terminal \n\t\n";
-    }
+}
+if ($txt or $txtg){
+    print "\nTo make a BigBed file from this text file, rename file to .bed and use USCS program bedToBigBed in terminal \n\t\n";
 }
 
 
