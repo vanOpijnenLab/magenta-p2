@@ -1,13 +1,11 @@
 #!/usr/bin/perl -w
 
-#Margaret Antonio 15.04.11
+#Margaret Antonio 15.04.15
 
-#VERSION 15: Change wig line[0] from start to mid.
+#VERSION 16: This version combines version 14 and the multiple file input to array and sorting feature from version 13. This is awesome
+#Still need to: make window cutoffs...and lots of more stuff
 
-#Compiled the .csv files using mergeCSV.pl and then sorted them by GNU sort in terminal from /results/
-# $ sort -t, -k1 -n compiledPennG.csv > sortedCompiledPennG.csv
-
-#../script/windowFit15.pl --ref=NC_003028b2.gbk --cutoff 15 --in results/test.csv  --step 10 --size 500  --wig 15A.wig --stat --indiv fitIndivMut.wig
+#../script/windowFit16.pl --ref=NC_003028b2.gbk --cutoff 15 --csv windowFit/16A.csv --step 10 --size 500 --txtg ../viewer/16Agrouped.txt --txt ../viewer/16A.txt --wig 14B.wig results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv
 
 use strict;
 use Getopt::Long;
@@ -19,9 +17,11 @@ use Bio::SeqIO;
 #AVAILABLE OPTIONS. WILL PRINT UPON ERROR
 sub print_usage() {
     print "\nRequired:\n";
-    print "--size \t The size of the sliding window \n";
-    print "--step \t The window spacing \n";
-    print "--in \t The name of the file containing fitness values for individual insertion mutants.\n";
+    print "In the command line (without a flag), input the name(s) of the file(s) containing fitness values for individual insertion mutants.\n";
+    
+    print "\nOptional:\n";
+    print "--size \t The size of the sliding window(default=500) \n";
+    print "--step \t The window spacing (default=10) \n";
     print "--csv \t Name of a file to enter the .csv output for sliding windows.\n";
     print "--cutoff \tCutoff: Don't include fitness scores with average counts (c1+c2)/2 < x (default: 0)\n";
     
@@ -33,9 +33,8 @@ sub print_usage() {
 }
 
 #ASSIGN INPUTS TO VARIABLES
-our ($stat,$indiv,$txt,$txtg,$cutoff,$wig,$ref_genome,$infile, $csv, $step, $size);
+our ($txt,$txtg,$cutoff,$wig,$ref_genome,$infile, $csv, $step, $size);
 GetOptions(
-'indiv:s'=>\$indiv,
 'wig:s' => \$wig,
 'ref:s' => \$ref_genome,
 'cutoff:i'=>\$cutoff,
@@ -45,7 +44,7 @@ GetOptions(
 'size:i' => \$size,
 'txtg:s' => \$txtg,
 'txt:s' => \$txt,
-'stat'=>\$stat,
+'genome:s'=> \$genome,
 
 );
 
@@ -56,11 +55,9 @@ sub get_time() {
 # Just to test out the script opening
 print print_usage(),"\n";
 print "\n";
-print "Input file: ", $infile,"\n";
-if ($csv){print "Output file: ", $csv,"\n";}
+if ($csv){print "CSV output file: ", $csv,"\n";}
 if ($txt){print "Text file for window data: $txt\n";}
 if ($txtg){print "Text file for grouped windows: $txtg\n";}
-if ($indiv){print "wig file for individual insertion mutants: $indiv\n";}
 
 
 #CHECKING PARAMETERS: Check to make sure required option inputs are there and if not then assign default
@@ -71,115 +68,58 @@ print "Window size: $size\n";
 print "Step value: $step\n";
 print "Cutoff: $cutoff\n";
 
-if ((!$csv) and (!$txt) and (!$txtg) and (!$wig) and (!$indiv)) {
+if ((!$csv) and (!$txt) and (!$txtg) and (!$wig)) {
     print "\nThere must be some kind of output file assigned (--csv, --txt, or --txtg)\n";
     print_usage();
     die;
 }
+#CREATE AN ARRAY OF DATA FROM INPUT CSV FILE(S)
+print "\nStart input array ",get_time(),"\n";
 
+my $rowCount=-1;
+my $last;
+my @unsorted;
+my $num=$#ARGV+1;
+print "\nNumber of files in csv: ", $num,"\n";
+
+my $csvtemp=Text::CSV->new;
+
+for (my $i=0; $i<$num; $i++){   #Read files from ARGV
+    my $file=$ARGV[$i];
+    open(my $data, '<', $file) or die "Could not open '$file' Make sure input .csv files are entered in the command line\n";
+    $csvtemp->getline($data);
+    while (my $line = $csvtemp->getline($data)) {
+        chomp $line;
+        my $w = $line->[12];
+        if (!$w){next;} # For blanks
+        else{
+            my $c1 = $line->[2];
+            my $c2 = $line->[3];
+            my $avg = ($c1+$c2)/2;
+            if ($avg < $cutoff) { next; } # Skip cutoff genes.
+            else {
+                my @select=($line->[0],$line->[12]);
+                my $select=\@select;
+                push(@unsorted,$select);
+                $rowCount+=1;
+                $last=$select->[0];
+            }
+        }
+    }
+    close $data;
+}
+my @sorted = sort { $a->[0] <=> $b->[0] } @unsorted;
+
+#Print test of array
+#for (my $i=0;$i<30;$i++){
+#foreach my $element ( @{ $sorted[$i] }){print $element,"\t";}
+#print "\n";}
+
+print "Finished input array ",get_time(),"\n";
 
 ###############################################################################################
 
 print "\n---------This is the sliding window fitness calculation part--------\n\n";
-
-print "Start input array ",get_time(),"\n";
-#CREATE AN ARRAY OF DATA FROM INPUT CSV FILE
-
-my @data;
-my $csvIN=Text::CSV->new;   #({sep_char => ','})
-open my $fh, '<', $infile or die "Could not open";
-$csvIN->getline($fh);
-my $rowCount=-1;
-my $last;
-while (my $line = $csvIN->getline($fh)){      #While there is data in the line
-    my $w = $line->[12];
-    if ($w eq 'nW') {next;}
-    if (!$w){next;} # For blanks
-    else{
-        my $c1 = $line->[2];
-        my $c2 = $line->[3];
-        my $avg = ($c1+$c2)/2;
-        if ($avg < $cutoff) { next; } # Skip cutoff genes.
-        else {
-            my @select=($line->[0],$line->[12]);
-            my $select=\@select;
-            push(@data,$select);
-            $rowCount+=1;
-            $last=$select->[0];
-        }
-    }
-}
-close $fh;
-print "Finished input array ",get_time(),"\n\n";
-
-if ($stat){
-    
-    my $before=0;
-    my $insertion=0;
-    
-    foreach my $lines(@data){
-        my @line=@$lines;
-        if ($line[0]!=$before){
-            $insertion++;}
-        $before=$line[0];
-    }
-    print "\nNumber of insertion sites in the genome: $insertion\n\n";
-}
-
-
-
-if ($indiv){
-    
-    my @cummIndiv=();
-    my $cummIndiv=\@cummIndiv;
-    my $done=-1;
-    
-    #MAKE WIG FILE---->later make BW--->IGV
-    #fix this so single insertion sites
-    print "Start individual mutant wig file creation: ",get_time(),"\n";
-    my $in = Bio::SeqIO->new(-file=>$ref_genome);
-    my $refseq = $in->next_seq;
-    my $refname = $refseq->id;
-    open INWIG, ">$indiv";
-    print INWIG "track type=wiggle_0 name=$wig\n";
-    print INWIG "variableStep chrom=$refname\n";
-    
-    my $tempCount=0;
-    my $Wsum=0;
-    my @wholeWig;
-    for my $line(@data){
-        my @field=@$line;
-        my $nW=$field[12];
-        #if (!$nW){next;}
-        if (!@cummIndiv or $done=-1){
-            @cummIndiv=@field;
-            $Wsum=$field[12];
-            $tempCount=1;
-            
-        }
-        else{
-            if ($cummIndiv[0]==$field[0]){
-                $tempCount++;
-                $Wsum+=$field[12];
-                next;
-            }
-            else{
-                
-                my $avg=$Wsum/$tempCount;
-                my @indivPos=($cummIndiv[0], $avg);
-                my $indivPos=\@indivPos;
-                print INWIG $cummIndiv[0]," ",$avg,"\n";
-                $Wsum=0;$tempCount=0;
-                $done=-1;
-            }
-            
-        }
-    }
-    
-    close INWIG;
-    print "End individual mutant wig file creation: ",get_time(),"\n\n";
-    print "If this wig file needs to be converted to a Big Wig, then use USCS program wigToBigWig in terminal: \n \t./wigToBigWig gview/12G.wig organism.txt BigWig/output.bw \n\n";
-}
 
 my $index=-1;
 my $marker=0;
@@ -193,14 +133,14 @@ sub OneWindow{
     my $Wsum=0;
     my $i;
     for ($i=$marker;$i<$rowCount;$i++){
-        my @fields=@{$data[$i]};
+        my @fields=@{$sorted[$i]};
         if ($fields[0]<($Wstart+$step)){
             $index++;
         }
-        if ($fields[0]<$Wstart){  #shouldn't need this if marker works
+        if ($fields[0]<$Wstart){  #if deleted, error shows up
             next;
         }
-        elsif ($fields[0]<=$Wend){
+        if ($fields[0]<=$Wend){
             if ($fields[0]<=($Wstart+$step)) {$marker=$index;}
             $Wsum+=$fields[1];
             $Wcount+=1;
@@ -213,7 +153,7 @@ sub OneWindow{
                     #print @Wwindow;
                     return (\@Wwindow);
                 }
-                else{return -1}  #Becuse count=0 (i.e. there were no insertion mutants in that window)
+                else{return -1}  #Because count=0 (i.e. there were no insertion mutants in that window)
                 
             }
         }
@@ -262,9 +202,12 @@ if ($wig){
     print WIG "variableStep chrom=$refname\n";
     foreach my $wigLine(@allWindows){
         my @wigFields=@$wigLine;
-        my $mid=($wigFields[1]+$wigFields[0])/2;
-        print WIG $mid," ",$wigFields[2],"\n";
-        
+        my $position=$wigFields[0];
+        #while ($position<=$wigFields[1]){
+        print WIG $position," ",$wigFields[2],"\n";
+        #$position=$position+1;
+        #}
+        #print  WIG $wigFields[0]," ",$wigFields[2],"\n";
     }
     close WIG;
     print "End wig file creation: ",get_time(),"\n\n";
@@ -286,7 +229,6 @@ if ($txt){
     close $TXT;
     print "End text file creation: ",get_time(),"\n\n";
 }
-
 
 #IF MAKING A TEXT FILE OF GROUPED CONSECUTIVE WINDOWS WITH SAME FITNESS
 if ($txtg){
@@ -313,11 +255,10 @@ if ($txtg){
         }
     }
     close $TXTg;
-    
     print "End grouped text file creation: ",get_time(),"\n\n";
-}
-if ($txt or $txtg){
-    print "\nTo make a BigBed file from this text file, rename file to .bed and use USCS program bedToBigBed in terminal \n\t\n";
+    if ($txt or $txtg){
+        print "\nTo make a BigBed file from this text file, rename file to .bed and use USCS program bedToBigBed in terminal \n\t\n";
+    }
 }
 
 
