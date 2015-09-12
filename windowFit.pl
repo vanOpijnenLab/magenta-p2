@@ -95,7 +95,9 @@ for (my $i=0; $i<$num; $i++){   #Read files from ARGV
             my $c1 = $line->[2];
             my $c2 = $line->[3];
             my $avg = ($c1+$c2)/2;
-            if ($avg < $cutoff) { next; } # Skip cutoff genes.
+            if ($avg < $cutoff) { 
+            	next; 
+            } # Skip cutoff genes.
             else {
                 my @select=($line->[0],$line->[12]);
                 my $select=\@select;
@@ -127,36 +129,36 @@ my $marker=0;
 sub OneWindow{
     my $Wstart=shift @_;
     my $Wend=shift@_;
-    my $WwindowAvg=0;
+    my $Wavg=0;
     my $Wcount=0;
     my $Wsum=0;
     my $i;
-    for ($i=$marker;$i<$rowCount;$i++){
+    for ($i=$marker;$i<$rowCount;$i++){   #looping through whole file, begin at marker until end of file but really stops at window end
         my @fields=@{$sorted[$i]};
-        if ($fields[0]<($Wstart+$step)){
-            $index++;
-        }
-        if ($fields[0]<$Wstart){  #if deleted, error shows up
-            next;
-        }
-        if ($fields[0]<=$Wend){
-            if ($fields[0]<=($Wstart+$step)) {$marker=$index;}
+        my $site=$fields[0];
+        #if ($fields[0]<$Wstart){  #if deleted, error shows up
+        #    next;
+        #}
+        if ($site<=$Wend){
+        	if ($site<($Wstart+$step)){
+            	$marker++;
+        	}
             $Wsum+=$fields[1];
             $Wcount+=1;
         }
-        else{
-            if ($fields[0]>$Wend){         #if finished with that window, then:
-                if ($Wcount!=0){
-                    $WwindowAvg=sprintf("%.2f",$Wsum/$Wcount);
-                    my @Wwindow=($Wstart,$Wend,$WwindowAvg,$Wcount);
-                    #print @Wwindow;
-                    return (\@Wwindow);
-                }
-                else{return -1}  #Because count=0 (i.e. there were no insertion mutants in that window)
-                
-            }
-        }
-    }
+        else{   #if finished with that window ($site>$Wend) then calculate window fitness     
+			if ($Wcount!=0){
+				$Wavg=sprintf("%.2f",$Wsum/$Wcount);
+				my @window=($Wstart,$Wend,$Wavg,$Wcount);
+				#print @Wwindow;
+				return (\@window);
+			}
+			else{
+				return -1;  #Because count=0 (i.e. there were no insertion mutants in that window)
+			}  
+			
+		}
+    }   		
 }
 
 print "Start calculation: ",get_time(),"\n";
