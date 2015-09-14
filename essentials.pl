@@ -6,9 +6,11 @@
 #essentials update: now adding p-value to each window. For each window of x possible TA sites, generate 10,000 sets of x TA sites and then get ratio for (insertions at those TA sites) /(TA sites).
 #essentials update: makes one null distribution "library" of random 10,000 sites (instead of remaking it every time) and uses it for all statistical testing. Much faster.
 
-#../script/essentials.pl --wig essentialTest/2Gpval.wig --excel essentialTest/2GTAsitesInsertions.xls --ref=NC_003028b2.gbk --cutoff 15 --essential tigr4_genome.fasta --csv essentialTest/2Gessential.csv --essentialWig essentialTest/2GunmatchedInsertions.wig --step 10 --size 500 results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv
+#../Tn_SeqAnalysisScripts/essentials.pl --excel essentialTest/kill.xls --ref=NC_003028b2.gbk --essential tigr4_genome.fasta --csv essentialTest/1Bessentials.csv results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv
 
-#../script/essentials.pl --ref=NC_003028b2.gbk --cutoff 15  --csv essentialTest/essential2A.csv --step 10 --size 500 results/L1_2394eVI_PennG.csv
+#../Tn_SeqAnalysisScripts/essentials.pl --ref=NC_003028b2.gbk  --excel essentialTest/kill.xls  --csv essentialTest/1Bessential.csv results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv
+
+#results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv
 
 
 use strict;
@@ -75,6 +77,7 @@ if ($csv){print "CSV output file: ", $csv,"\n";}
 if ($txt){print "Text file for window data: $txt\n";}
 if ($txtg){print "Text file for grouped windows: $txtg\n";}
 if (!$round){$round='%.3f';}
+if (!$cutoff){$cutoff=15;}
 
 #CHECKING PARAMETERS: Check to make sure required option inputs are there and if not then assign default
 if (!$size) { $size=500 };   #set the default sliding window size to 500
@@ -96,12 +99,13 @@ print "\nStart input array ",get_time(),"\n";
 my $rowCount=-1;
 my $last=0;
 my @unsorted;
-my @insert; #array to hold all positions of insertions. Going to use this later to match up with TA sites
+my @insertPos; #array to hold all positions of insertions. Going to use this later to match up with TA sites
 my $num=$#ARGV+1;
 print "\nNumber of files in csv: ", $num,"\n";
 
 
 #Go through each file from the commandline (ARGV array) and read each line as an array into select array if values satisfy the cutoff
+
 for (my $i=0; $i<$num; $i++){   #Read files from ARGV
     my $csvtemp=Text::CSV->new;
     my $file=$ARGV[$i];
@@ -111,39 +115,36 @@ for (my $i=0; $i<$num; $i++){   #Read files from ARGV
     while (my $line = $csvtemp->getline($data)) {
         chomp $line;
         my $w = $line->[12];
-        #print $line->[0],$line->[12],"";
-      
         if (!$w){next;} # For blanks
         else{
             my $c1 = $line->[2];
             my $c2 = $line->[3];
             my $avg = ($c1+$c2)/2;
-            if ($avg>$cutoff) {
+            if ($avg > $cutoff) {
                 my @select=($line->[0],$line->[12]);
                 my $select=\@select;
                 push(@unsorted,$select);
-        
-                push(@insert,$line->[0]);
+                push(@insertPos,$line->[0]);   #keep track of actual insertion site position
                 $last=$select->[0];
-                $rowCount+=1;
+                $rowCount++;
                 
             }
         }
     }
     close $data;
 }
+
 my @sorted = sort { $a->[0] <=> $b->[0] } @unsorted;
-@insert = sort { $a <=> $b } @insert;
-@insert= uniq @insert;
 
-#foreach my $site(@insert){
-#print $site, " ";
-    #}
+@insertPos = sort { $a <=> $b } @insertPos;
+@insertPos= uniq @insertPos;
 
-#Print test of array
-#for (my $i=0;$i<30;$i++){
-    #foreach my $element ( @{ $sorted[$i] }){print $element,"\t";}
-    #print "\n";}
+for (my $i=0;$i<30;$i++){
+    foreach my $element ( @{ $sorted[$i] }){
+        print $element,"\t";
+    }
+    print "\n";
+}
 
 print "Finished input array ",get_time(),"\n";
 
@@ -159,43 +160,44 @@ my $marker=0;
 sub OneWindow{
     my $Wstart=shift @_;
     my $Wend=shift@_;
-    my $WwindowAvg=0;
+    my $Wavg=0;
     my $Wcount=0;
     my $insertion=0;
     my $Wsum=0;
     my $lastPos=0;
     my $i;
+    
     for ($i=$marker;$i<$rowCount;$i++){
         my @fields=@{$sorted[$i]};
-
-        if ($fields[0]<($Wstart+$step)){
-            $index++;
-        }
         if ($fields[0]<$Wstart){  #if deleted, error shows up
             next;
         }
         if ($fields[0]<=$Wend){
-            if ($fields[0]<=($Wstart+$step)) {$marker=$index;}
+            if ($fields[0]<($Wstart+$step)){
+                $marker++;
+            }
             $Wsum+=$fields[1];
-            $Wcount+=1;
+            $Wcount++;
             if ($fields[0]!=$lastPos){
-            $insertion+=1;
-            $lastPos=$fields[0];
+                $insertion+=1;
+                $lastPos=$fields[0];
             }
         }
         
         else{   #if ($fields[0]>$Wend){         #if finished with that window, then:
             if ($Wcount!=0){
-                $WwindowAvg=sprintf("%.2f",$Wsum/$Wcount);
-                my @Wwindow=($Wstart,$Wend,$WwindowAvg,$Wcount,$insertion);
+                $Wavg=sprintf("%.2f",$Wsum/$Wcount);
+                my @window=($Wstart,$Wend,$Wavg,$Wcount,$insertion);
                 #print @Wwindow, "\n";
-                return (\@Wwindow);
+                return (\@window);
             }
-            else{return -1}  #Becuse count=0 (i.e. there were no insertion mutants in that window)
+            else{
+                return -1;
+            }  #Because count=0 (i.e. there were no insertion mutants in that window)
                 
-            }
         }
     }
+}
 
 
 print "Start calculation: ",get_time(),"\n";
@@ -216,11 +218,11 @@ while ($end<=$last-$size){  #100,000bp-->9,950 windows--> only 8500 windows in c
 }
 print "End calculation: ",get_time(),"\n\n";
 
-#-----------------------------------------ESSENTIALS:Counting the number of TA sites in the genome and whether an insertion occurred there or not
+#-------ESSENTIALS:Counting the number of TA sites in the genome and whether an insertion occurred there or not
 
 #if ($genome){
 
-    my @site;
+    my @sites;
 
     #First read fasta file into a string
     my $seqio = Bio::SeqIO->new(-file => "tigr4_genome.fasta", '-format' => 'Fasta');
@@ -228,44 +230,48 @@ print "End calculation: ",get_time(),"\n\n";
     my $total=0;
     while(my $seq = $seqio->next_seq) {
         $genome = $seq->seq;
-        }
+    }
+    #Get number of "TA" sites, regardless of insertion---this is just the fasta file
     my $x="TA";
     my @c = $genome =~ /$x/g;
     my $countTA = @c;
     
     #At what positions in the genome do TA sites occur?
-    my $offset=0;
-    my $insert=\@insert;
-    my $posit=0;
+
+
+    my $pos=0;
     my $countInsert=0;
     my @selector;   #use this array to hold all 1 and 0 of whether insertion happened or not.
-        #for my $some(@insert){print $some," ";}
-    my $result = index($genome, 'TA',$offset);
+        #for my $some(@insertPos){print $some," ";}
+
     
     #Go through all TA sites identified above and see if an insertion occurs there.
     #Push results onto two arrays a 2d array with the position and a 1D array with just the 0 or 1
    
     my @unmatched; #hold all unmatched ta sites
-    my @occur; #2d array to hold all occurences of TA sites in genome
+    my @allTAsites; #2d array to hold all occurences of TA sites in genome
     my $unmatchedCount=0;
-    while (($result != -1) and ($posit!=@insert)) {
+    my $offset=0;
+    my $result = index($genome, 'TA',$offset);
+
+    while (($result != -1) and ($pos!=scalar @insertPos)) {
         my $yes=0;
-        if ($result>$insert[$posit]){
-            push @unmatched,$insert[$posit];
+        if ($result>$insertPos[$pos]){
+            push @unmatched,$insertPos[$pos];
             $unmatchedCount++;
-            $posit++
+            $pos++;
         }
-        if ($result==$insert[$posit]){
+        if ($result==$insertPos[$pos]){
             $yes=1;
             $countInsert++;
-            $posit++;
+            $pos++;
         }
 
         #print "$result \t $insert[$posit] \t $yes\n";
         #print $insert[$index],"     ";
-        my @site=($result,$yes);
+        my @sites=($result,$yes);
         push @selector,$yes;    #push the 0 or 1 onto the array @selector---going to use this to draw random sets for the null distribution
-        push (@occur,\@site);
+        push (@allTAsites,\@sites);
         #print $result, " ", $yes,"\n";
         $offset = $result + 1;
         $result = index($genome, 'TA', $offset);
@@ -285,7 +291,7 @@ print "End calculation: ",get_time(),"\n\n";
     $wholeSheet->write('A1', "TA_SITE");
     $wholeSheet->write('B1', "INSERTION?");
     
-    $wholeSheet->write_col(1,0, \@occur); # Write a column of data
+    $wholeSheet->write_col(1,0, \@allTAsites); # Write a column of data
     
     #PRINT 2D ARRAY TO WIG FILE SO WE CAN SEE IT IN IGV
     
@@ -309,7 +315,7 @@ print "End calculation: ",get_time(),"\n\n";
 
 #------------------------------------------------------------------------------------------------------------------------------------------------------
     
-    #Now, have an array for each TA site and if an insertion occurred there. So per site @site(position, 0 or 1 for insertion).
+    #Now, have an array for each TA site and if an insertion occurred there. So per site @sites(position, 0 or 1 for insertion).
     #Next step, create null distribution of 10,000 random sets with same number of TA sites as the window and then calculate p-value
   
     #SUBROUTINE FOR MAKING THE NULL DISTRIBUTION SPECIFIC TO THE WINDOW
@@ -326,17 +332,17 @@ my @distLib;
 my $N=10000;
 
 
-for (my $sitez=1; $sitez<100;$sitez++){
+for (my $sitez=1; $sitez<50;$sitez++){
     
-    print "In the first for loop to make a null distribution\n";
+    #print "In the first for loop to make a null distribution\n";
     my @unsorted;
     my $count=0;
     my $sum=0;
     #my $average=0;
     
-    for (my $i=0; $i<10000; $i++){
+    for (my $i=0; $i<50; $i++){
         #print "In the second for loop to make a null distribution\n";
-        my @random_set = rand_set( set => \@selector, size => $sitez );
+        my @random_set = rand_set( set => \@selector, size => $sitez);
         my $setAvg=sprintf("$round",mean(@random_set));
         push (@unsorted, $setAvg);
         #print "$i:\t", "$setAvg\n";
@@ -344,12 +350,11 @@ for (my $sitez=1; $sitez<100;$sitez++){
     }
     my @nullDist= sort { $a <=> $b } @unsorted;
     
-    my $nullDist=\@nullDist;
-    my $min=$nullDist->[0];
-    my $max=$nullDist->[@nullDist-1];
+    my $min=$nullDist[0];
+    my $max=$nullDist[scalar @nullDist-1];
     my $nullAvg=$sum/$count;
-    print "NULL DIST Min: $min | Max: $max | Average: $nullAvg\n\n";
-    print "Done with null distrubtion #$sitez\n";
+    #print "NULL DIST Min: $min | Max: $max | Average: $nullAvg\n\n";
+    #print "Done with null distrubtion #$sitez\n";
     push (@distLib,\@nullDist);
     
 }
@@ -377,7 +382,7 @@ for (my $sitez=1; $sitez<100;$sitez++){
     
     print "Size of genome is: ", length($genome), "\n";
     
-    #Now we have an array called @occur which contains every TAsite position with a 0 next to it for "no insertion".
+    #Now we have an array called @allTAsites which contains every TAsite position with a 0 next to it for "no insertion".
     #Now just need to replace 0 with 1 if there IS and insertion at that site
 
     #FOR TESTING: to print subset of the genome
@@ -403,17 +408,17 @@ for (my $i=0;$i<5000;$i++){
     my @win=@{$allWindows[$i]};
     my $starter=$win[0];
     my $ender=$win[1];
-    print "num $printNum -->\tStart pos: $starter\tEnd pos: $ender\n";
+    #print "num $printNum -->\tStart pos: $starter\tEnd pos: $ender\n";
     #How many TA sites are there from $genome[$start] to $genome[$end]?
 
 
     my $seq = substr($genome,$starter-1,500);  #start-1 becase $start and $end are positions in genome starting at 1,2,3.... substr(string,start, length) needs indexes
     my $ta="TA";
     my @c = $seq =~ /$ta/g;
-    my $TAsites = @c;
+    my $TAsites = scalar @c;
     push(@win,$TAsites);
     my $countAvg=$win[3]/$TAsites;
-    print "\tCountAVG=$countAvg\n";
+    #print "\tCountAVG=$countAvg\n";
     push (@win,$countAvg);
     my $pval=pvalue($countAvg,$TAsites);
     push (@win,$pval);
@@ -433,6 +438,19 @@ for (my $i=0;$i<5000;$i++){
 
 #MAKE OUTPUT CSV FILE WITH WINDOW CALCULATIONS
 if ($csv){
+    print "Start csv ouput file creation: ",get_time(),"\n";
+    my $csvBIG = Text::CSV->new({ binary => 1, auto_diag => 1, eol => "\n"}) or die "Cannot use CSV: " . Text::CSV->error_diag();  # open in append mode
+    open my $file, ">", "$csv" or die "Failed to open file";
+    $csvBIG->print($file, [ "start", "end","fitness","mutant_count" ]); #header
+    foreach my $winLine(@allWindows){
+        $csvBIG->print($file,$winLine);
+    }
+    close $file;
+    print "End csv ouput file creation: ",get_time(),"\n\n";
+}
+
+#MAKE OUTPUT CSV FILE WITH WINDOW CALCULATIONS
+elsif ($csv){
     print "Start csv ouput file creation: ",get_time(),"\n";
     my $csvBIG = Text::CSV->new({ binary => 1, auto_diag => 1, eol => "\n"}) or die "Cannot use CSV: " . Text::CSV->error_diag();  # open in append mode
     open my $file, ">", "$csv" or die "Failed to open file";

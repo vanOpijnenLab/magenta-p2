@@ -1,11 +1,8 @@
-sub#!/usr/bin/perl -w
+#!/usr/bin/perl -w
 
-#Margaret Antonio 15.04.15
+#Margaret Antonio 15.09.12
 
-#VERSION 16: This version combines version 14 and the multiple file input to array and sorting feature from version 13. This is awesome
-#Still need to: make window cutoffs...and lots of more stuff. Same as windowFit.pl except that it outputs statistics into an excel file
-
-#../script/transposonStat.pl --normal tigr4_normal.txt --dist_set 7 --dist_size 1000 --excel testerExcel2.xls results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv --version
+#../Tn_SeqAnalysisScripts/windowFitStats.pl --normal tigr4_normal.txt --dist_set 7 --dist_size 1000 --excel testerExcel2.xls results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv --version
 
 use strict;
 use Getopt::Long;

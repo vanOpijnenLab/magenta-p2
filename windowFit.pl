@@ -14,21 +14,21 @@ use Bio::SeqIO;
 #AVAILABLE OPTIONS. WILL PRINT UPON ERROR
 sub print_usage() {
     print "\nDescription:\n";
-    print "Integrates multiple files of transposon insertion data and outputs aggregate fitness within a sliding window (specified by size and step). Can ouput files as text, csv, wig.\n";
+    print "Integrates multiple files of transposon insertion data and outputs aggregate fitness within a sliding window (specified by size and step). Can ouput files as text, csv, wig.";
     print "\nRequired:\n";
     print "In the command line (without a flag), input the name(s) of the file(s) containing fitness values for individual insertion mutants.\n";
     
     print "\nOptional:\n";
-    print "--size \tThe size of the sliding window(default=500) \n";
-    print "--step \tThe window spacing (default=10) \n";
+    print "--size \t The size of the sliding window(default=500) \n";
+    print "--step \t The window spacing (default=10) \n";
+    print "--csv \t Name of a file to enter the .csv output for sliding windows.\n";
     print "--cutoff \tCutoff: Don't include fitness scores with average counts (c1+c2)/2 < x (default: 0)\n";
     
     print "\nMust choose at least one type of output:\n";
-    print "--csv    \tName of a file to enter the .csv output for sliding windows.\n";
-    print "--wig    \tCreate a wiggle file for viewing in a genome browser. Provide a filename. Also provide genome under --ref\n";
-    print "--txt    \tOutput all data [start,end,W,count] into a text of bed file.\n";
-    print "--txtg   \tIf consecutive windows have the same value, then group them into one window. Ouput into txt file or bed file.\n";
-    print "--ref    \tThe name of the reference genome file, in GenBank format. Needed for wig and txt file creation\n";
+    print "--wig\tCreate a wiggle file for viewing in a genome browser. Provide a filename. Also provide genome under --ref\n";
+    print "--txt\t Output all data [start,end,W,count] into a text of bed file.\n";
+    print "--txtg\t If consecutive windows have the same value, then group them into one window. Ouput into txt file or bed file.\n";
+    print "--ref\tThe name of the reference genome file, in GenBank format. Needed for wig and txt file creation\n";
 }
 
 #ASSIGN INPUTS TO VARIABLES
