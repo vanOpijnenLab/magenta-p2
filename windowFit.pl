@@ -93,8 +93,8 @@ for (my $i=0; $i<$num; $i++){   #Read files from ARGV
             my $c1 = $line->[2];
             my $c2 = $line->[3];
             my $avg = ($c1+$c2)/2;
-            if ($avg < $cutoff) { 
-            	next; 
+            if ($avg < $cutoff) {
+                next;
             } # Skip cutoff genes.
             else {
                 my @select=($line->[0],$line->[12]);
@@ -138,25 +138,25 @@ sub OneWindow{
         #    next;
         #}
         if ($site<=$Wend){
-        	if ($site<($Wstart+$step)){
-            	$marker++;
-        	}
+            if ($site<($Wstart+$step)){
+                $marker++;
+            }
             $Wsum+=$fields[1];
             $Wcount+=1;
         }
-        else{   #if finished with that window ($site>$Wend) then calculate window fitness     
-			if ($Wcount!=0){
-				$Wavg=sprintf("%.2f",$Wsum/$Wcount);
-				my @window=($Wstart,$Wend,$Wavg,$Wcount);
-				#print @Wwindow;
-				return (\@window);
-			}
-			else{
-				return -1;  #Because count=0 (i.e. there were no insertion mutants in that window)
-			}  
-			
-		}
-    }   		
+        else{   #if finished with that window ($site>$Wend) then calculate window fitness
+            if ($Wcount!=0){
+                $Wavg=sprintf("%.2f",$Wsum/$Wcount);
+                my @window=($Wstart,$Wend,$Wavg,$Wcount);
+                #print @Wwindow;
+                return (\@window);
+            }
+            else{
+                return -1;  #Because count=0 (i.e. there were no insertion mutants in that window)
+            }
+            
+        }
+    }
 }
 
 print "Start calculation: ",get_time(),"\n";
