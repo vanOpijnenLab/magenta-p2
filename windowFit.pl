@@ -2,7 +2,7 @@
 
 #Margaret Antonio updated 15.09.13
 
-#../Tn_SeqAnalysisScripts/windowFit.pl --cutoff 15 --csv windowFit/19A.csv --step 10 --size 500 --txtg ../viewer/19Agrouped.txt --ref=NC_003028b2.gbk results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv
+#../Tn_SeqAnalysisScripts/windowFit.pl --cutoff 15 --csv windowFit/1.csv --step 10 --size 500 --txtg ../viewer/19Agrouped.txt --ref=NC_003028b2.gbk results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv
 
 use strict;
 use Getopt::Long;
