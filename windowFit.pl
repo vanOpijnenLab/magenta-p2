@@ -1,8 +1,8 @@
 #!/usr/bin/perl -w
 
-#Margaret Antonio updated 15.09.13
+#Margaret Antonio updated 15.09.15
 
-#../Tn_SeqAnalysisScripts/windowFit.pl --cutoff 15 --csv windowFit/1.csv --step 10 --size 500 --txtg ../viewer/19Agrouped.txt --ref=NC_003028b2.gbk results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv
+#../Tn_SeqAnalysisScripts/windowFit.pl --csv windowFit/21.csv results/L6_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv >runner.txt
 
 use strict;
 use Getopt::Long;
@@ -85,10 +85,16 @@ for (my $i=0; $i<$num; $i++){   #Read files from ARGV
     my $file=$ARGV[$i];
     open(my $data, '<', $file) or die "Could not open '$file' Make sure input .csv files are entered in the command line\n";
     $csvtemp->getline($data);
+    print $file,"\n";
     while (my $line = $csvtemp->getline($data)) {
         chomp $line;
         my $w = $line->[12];
+        #my $temp=$line->[0];
+        #if ($temp<500){
+        #    print $temp,"\t", $w, "\n";
+        #}
         if (!$w){next;} # For blanks
+        
         else{
             my $c1 = $line->[2];
             my $c2 = $line->[3];
@@ -100,19 +106,21 @@ for (my $i=0; $i<$num; $i++){   #Read files from ARGV
                 my @select=($line->[0],$line->[12]);
                 my $select=\@select;
                 push(@unsorted,$select);
-                $rowCount+=1;
+                $rowCount++;
                 $last=$select->[0];
+                
             }
         }
     }
     close $data;
+    
 }
 my @sorted = sort { $a->[0] <=> $b->[0] } @unsorted;
 
 #Print test of array
 #for (my $i=0;$i<30;$i++){
-#foreach my $element ( @{ $sorted[$i] }){print $element,"\t";}
-#print "\n";}
+#    foreach my $element ( @{ $sorted[$i] }){print $element,"\t";}
+#   print "\n";}
 
 print "Finished input array ",get_time(),"\n";
 
@@ -130,19 +138,20 @@ sub OneWindow{
     my $Wavg=0;
     my $Wcount=0;
     my $Wsum=0;
+    my @indiv;
     my $i;
     for ($i=$marker;$i<$rowCount;$i++){   #looping through whole file, begin at marker until end of file but really stops at window end
         my @fields=@{$sorted[$i]};
         my $site=$fields[0];
         #if ($fields[0]<$Wstart){  #if deleted, error shows up
-        #    next;
+        #next;
         #}
         if ($site<=$Wend){
             if ($site<($Wstart+$step)){
                 $marker++;
             }
             $Wsum+=$fields[1];
-            $Wcount+=1;
+            $Wcount++; #print $Wcount, "\t",$fields[0],"\t",$fields[1],"\n";
         }
         else{   #if finished with that window ($site>$Wend) then calculate window fitness
             if ($Wcount!=0){
@@ -166,6 +175,7 @@ my $windowNum=0;
 my @allWindows=(); #will be a 2D array containing all window info to be written into output file
 
 #WHILE LOOP TO CALL THE ONE WINDOW SUBROUTINE FOR CALCULATIONS===INCREMENTS START AND END VALUES OF THE WINDOW
+
 while ($end<=$last-$size){  #100,000bp-->9,950 windows--> only 8500 windows in csv because 0
     my($window)=OneWindow($start,$end);
     if ($window!=-1){
