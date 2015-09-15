@@ -441,19 +441,6 @@ if ($csv){
     print "Start csv ouput file creation: ",get_time(),"\n";
     my $csvBIG = Text::CSV->new({ binary => 1, auto_diag => 1, eol => "\n"}) or die "Cannot use CSV: " . Text::CSV->error_diag();  # open in append mode
     open my $file, ">", "$csv" or die "Failed to open file";
-    $csvBIG->print($file, [ "start", "end","fitness","mutant_count" ]); #header
-    foreach my $winLine(@allWindows){
-        $csvBIG->print($file,$winLine);
-    }
-    close $file;
-    print "End csv ouput file creation: ",get_time(),"\n\n";
-}
-
-#MAKE OUTPUT CSV FILE WITH WINDOW CALCULATIONS
-elsif ($csv){
-    print "Start csv ouput file creation: ",get_time(),"\n";
-    my $csvBIG = Text::CSV->new({ binary => 1, auto_diag => 1, eol => "\n"}) or die "Cannot use CSV: " . Text::CSV->error_diag();  # open in append mode
-    open my $file, ">", "$csv" or die "Failed to open file";
     $csvBIG->print($file, [ "start", "end","fitness","mutant_count","insertions","TA_sites","ratio","p-value"]); #header
     foreach my $winLine(@allWindows){
         $csvBIG->print($file,$winLine);
