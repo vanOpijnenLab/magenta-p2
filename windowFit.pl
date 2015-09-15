@@ -2,7 +2,7 @@
 
 #Margaret Antonio updated 15.09.15
 
-#../Tn_SeqAnalysisScripts/windowFit.pl --csv windowFit/21.csv results/L6_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv >runner.txt
+#../Tn_SeqAnalysisScripts/windowFit.pl --csv windowFit/22.csv results/L6_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv >runner.txt
 
 use strict;
 use Getopt::Long;
@@ -14,25 +14,30 @@ use Bio::SeqIO;
 #AVAILABLE OPTIONS. WILL PRINT UPON ERROR
 sub print_usage() {
     print "\nDescription:\n";
-    print "Integrates multiple files of transposon insertion data and outputs aggregate fitness within a sliding window (specified by size and step). Can ouput files as text, csv, wig.";
+    print "Integrates multiple files of transposon insertion data and outputs aggregate fitness within a sliding window (specified by size and step). Can ouput files as text, csv, wig.\n";
+    print "\nCommand line: windowFit.pl <OPTIONS> <REQ OUTPUT TYPE(S)> <INPUT FILE(S)>\n\n";
     print "\nRequired:\n";
     print "In the command line (without a flag), input the name(s) of the file(s) containing fitness values for individual insertion mutants.\n";
     
     print "\nOptional:\n";
     print "--size \t The size of the sliding window(default=500) \n";
     print "--step \t The window spacing (default=10) \n";
-    print "--csv \t Name of a file to enter the .csv output for sliding windows.\n";
     print "--cutoff \tCutoff: Don't include fitness scores with average counts (c1+c2)/2 < x (default: 0)\n";
     
     print "\nMust choose at least one type of output:\n";
+    print "--csv \t Name of a file to enter the .csv output for sliding windows.\n";
     print "--wig\tCreate a wiggle file for viewing in a genome browser. Provide a filename. Also provide genome under --ref\n";
     print "--txt\t Output all data [start,end,W,count] into a text of bed file.\n";
     print "--txtg\t If consecutive windows have the same value, then group them into one window. Ouput into txt file or bed file.\n";
     print "--ref\tThe name of the reference genome file, in GenBank format. Needed for wig and txt file creation\n";
+    
+    print "--h for help\n\n";
+    
 }
 
+
 #ASSIGN INPUTS TO VARIABLES
-our ($txt,$txtg,$cutoff,$wig,$ref_genome,$infile, $csv, $step, $size);
+our ($txt,$txtg,$cutoff,$h, $wig,$ref_genome,$infile, $csv, $step, $size);
 GetOptions(
 'wig:s' => \$wig,
 'ref:s' => \$ref_genome,
@@ -43,6 +48,7 @@ GetOptions(
 'size:i' => \$size,
 'txtg:s' => \$txtg,
 'txt:s' => \$txt,
+'h'=>\$h,
 );
 
 sub get_time() {
@@ -50,8 +56,13 @@ sub get_time() {
     return "$hour:$min:$sec";
 }
 # Just to test out the script opening
-print print_usage(),"\n";
+
 print "\n";
+if ($h){
+    print_usage();
+    exit;
+}
+
 if ($csv){print "CSV output file: ", $csv,"\n";}
 if ($txt){print "Text file for window data: $txt\n";}
 if ($txtg){print "Text file for grouped windows: $txtg\n";}
@@ -85,7 +96,7 @@ for (my $i=0; $i<$num; $i++){   #Read files from ARGV
     my $file=$ARGV[$i];
     open(my $data, '<', $file) or die "Could not open '$file' Make sure input .csv files are entered in the command line\n";
     $csvtemp->getline($data);
-    print $file,"\n";
+    print "\t",$file,"\n";
     while (my $line = $csvtemp->getline($data)) {
         chomp $line;
         my $w = $line->[12];
