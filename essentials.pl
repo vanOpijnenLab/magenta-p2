@@ -12,7 +12,9 @@
 
 #results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv
 
-#../Tn_SeqAnalysisScripts/essentials.pl  --ref=NC_003028b2.gbk --essential tigr4_genome.fasta results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv --log
+#../Tn_SeqAnalysisScripts/essentials.pl  --ref=NC_003028b2.gbk --essential tigr4_genome.fasta results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv  --log --outdir 1slidingWindow
+
+#results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv
 
 use strict;
 use Getopt::Long;
@@ -27,6 +29,7 @@ use List::BinarySearch qw( :all );
 use List::BinarySearch::XS;
 use List::MoreUtils qw(uniq);
 use File::Path;
+use File::Basename;
 use feature qw/say/;
 use autodie;
 
@@ -59,10 +62,10 @@ sub print_usage() {
 
 
 #ASSIGN INPUTS TO VARIABLES
-our ($round,$random,$txt,$txtg,$cutoff,$wig,$infile, $csv, $step, $h, $outdir,$size,$genome, $log);
+our ($round,$random,$txt,$txtg,$cutoff,$wig,$infile, $csv, $step, $h, $outdir,$size,$genome, $log, $ref_genome);
 GetOptions(
 'wig:s' => \$wig,
-'ref:s' => \$genome,
+'ref:s' => \$ref_genome,
 'cutoff:i'=>\$cutoff,
 'in:s' => \$infile,
 'csv:s'  => \$csv,
@@ -92,7 +95,7 @@ if ($h){
 }
 if (!$round){$round='%.3f';}
 if (!$outdir){
-	$outdir="slidingWindow";
+	$outdir="slidingWindow4";
 	mkpath($outdir);
 }
 
@@ -244,9 +247,8 @@ while ($end<=$last-$size){  #100,000bp-->9,950 windows--> only 8500 windows in c
     $start=$start+$step;
     $end=$end+$step;
 }
-print "End calculation: ",get_time(),"\n\n";
+print "End calculation: ",get_time(),"\n";
 
-if ($genome){
 print "\n---------Assessing essentiality of genome region in each window--------\n\n";
 #ESSENTIALS: Counting the number of TA sites in the genome and whether an insertion occurred there or not
 
@@ -440,7 +442,7 @@ close DIST;
 print "Start p-value calculation for individual windows: ",get_time(),"\n\n";
 
 #my $allWindows=\@allWindows;
-for (my $i=0;$i<5000;$i++){
+for (my $i=0;$i<$rowCount;$i++){
     my @win=@{$allWindows[$i]};
     my $starter=$win[0];
     my $ender=$win[1];
@@ -462,7 +464,6 @@ for (my $i=0;$i<5000;$i++){
     
     $printNum++;
     }
-@allWindows=@newWindows;
 
    
  print "End p-value calculation: ",get_time(),"\n\n";
@@ -472,7 +473,7 @@ for (my $i=0;$i<5000;$i++){
 #---------------------------------------------------------OUTPUTS-------------------------------------------------------------------
 
 
-#MAKE OUTPUT CSV FILE WITH WINDOW CALCULATIONS
+#MAKE OUTPUT CSV FILE WITH ESSENTIAL WINDOW CALCULATIONS
 
     print "Start csv ouput file creation: ",get_time(),"\n";
     my $csvBIG = Text::CSV->new({ binary => 1, auto_diag => 1, eol => "\n"}) or die "Cannot use CSV: " . Text::CSV->error_diag();  
@@ -481,134 +482,134 @@ for (my $i=0;$i<5000;$i++){
 	open (my $FH8, ">$outdir/essentialWindows.csv");
 	
     $csvBIG->print($FH8, [ "start", "end","fitness","mutant_count","insertions","TA_sites","ratio","p-value"]); #header
-    foreach my $winLine(@allWindows){
+    foreach my $winLine(@newWindows){
         $csvBIG->print($FH8,$winLine);
     }
     close $FH8;
     print "End csv ouput file creation: ",get_time(),"\n\n";
 
-
-#MAKE WIG FILE---->later make BW--->IGV
-if ($wig){
-    print "Start wig file creation: ",get_time(),"\n";
-    my $in = Bio::SeqIO->new(-file=>$genome);
+my $in = Bio::SeqIO->new(-file=>$ref_genome);
     my $refseq = $in->next_seq;
     my $refname = $refseq->id;
-    
-    my $FILE5 = "$outdir/$wig";
-    unless(open WIG, ">", $FILE5){
-		die "\nUnable to create $FILE5:\n$!";
-	}
-    printf WIG "track type=wiggle_0 name=$wig\n";
-    printf WIG "variableStep chrom=$refname\n";
-    foreach my $wigLine(@allWindows){
+#MAKE essentials WIG FILE---->later make BW--->IGV
+ sub printwig{
+    print "Start wig file creation: ",get_time(),"\n";
+    my $in = Bio::SeqIO->new(-file=>$ref_genome);
+    my $refseq = $in->next_seq;
+    my $refname = $refseq->id;
+    my $ewig="essentialWindows.wig";
+    my $FILE5 ="$outdir/$ewig";
+    open (eWIG, ">$FILE5");
+    printf eWIG "track type=wiggle_0 name=$ewig\n";
+    printf eWIG "variableStep chrom=$refname\n";
+    foreach my $wigLine(@newWindows){
         my @wigFields=@$wigLine;
         my $position=$wigFields[0];
-        #while ($position<=$wigFields[1]){
-        printf WIG $position," ",$wigFields[7],"\n";    #7 for pvalue, but 2 for fitness!!!!!!
-        #$position=$position+1;
-        #}
+        while ($position<=$wigFields[1]){
+        printf eWIG $position, " ",$wigFields[7],"\n";    #7 for pvalue, but 2 for fitness!!!!!!
+        $position=$position+1;
+        }
         #print  WIG $wigFields[0]," ",$wigFields[2],"\n";
     }
-    close WIG;
+    close eWIG;
     print "End wig file creation: ",get_time(),"\n\n";
     print "If this wig file needs to be converted to a Big Wig, then use USCS program wigToBigWig in terminal: \n \t./wigToBigWig gview/12G.wig organism.txt BigWig/output.bw \n\n";
 }
 
 #IF GOING TO MAKE A TEXT FILE FOR BED CONVERSION TO BIGBED, NEED CHROM # IN COLUMN 0
-my @cummulative;
+my @ecummulative;
+my @temp=split("$ref_genome",".");
+my $refName=$temp[0];
 if ($txtg or $txt){
-    for my $line(@allWindows){
-        unshift($line, "NC_003028");
+    for my $line(@newWindows){
+        unshift($line, "$refName");
     }
 }
 #IF MAKING A REGULAR TEXT FILE fields: [chrom,start,end,fitness,count]
+#Don't think this is necessary:
 if ($txt){
     print "Start text file creation time: ",get_time(),"\n";
     open my $TXT, '>', "$outdir/$txt" or die "\nUnable to create $txt:\n$!";
-    print $TXT (join("\t",@$_),"\n") for @allWindows;
+    print $TXT (join("\t",@$_),"\n") for @newWindows;
     close $TXT;
     print "End text file creation: ",get_time(),"\n\n";
 }
 
 #IF MAKING A TEXT FILE OF GROUPED CONSECUTIVE WINDOWS WITH SAME FITNESS
-if ($txtg){
+    my $etxtg="groupedWindows.txt";
     print "Start grouped txt file creation time: ",get_time(),"\n";
-    open my $TXTg, '>', "$outdir/$txtg" or die $!;
-    for my $line(@allWindows){
+    open my $eTXTg, '>', "$outdir/$etxtg" or die $!;
+    for my $line(@newWindows){
         my @field=@$line;
-        if (!@cummulative){
-            @cummulative=@field;
-            if ($cummulative[4]>1000){$cummulative[4]=1000}
+        if (!@ecummulative){
+            @ecummulative=@field;
+            if ($ecummulative[4]>1000){$ecummulative[4]=1000}
         }
         else{
-            if ($cummulative[3]==$field[3]){
-                $cummulative[2]=$field[2];
-                if ($cummulative[4]<=1000-$field[4]){
-                    $cummulative[4]+=$field[4];
+            if ($ecummulative[3]==$field[3]){
+                $ecummulative[2]=$field[2];
+                if ($ecummulative[4]<=1000-$field[4]){
+                    $ecummulative[4]+=$field[4];
                 }
             }
             else{
-                print $TXTg ($_,"\t") for @cummulative;
-                print $TXTg ("\n");
-                @cummulative=@field;
+                print $eTXTg ($_,"\t") for @ecummulative;
+                print $eTXTg ("\n");
+                @ecummulative=@field;
             }
         }
     }
-    close $TXTg;
+    close $eTXTg;
     print "End grouped text file creation: ",get_time(),"\n\n";
-    if ($txt or $txtg){
-        print "\nTo make a BigBed file from this text file, rename file to .bed and use USCS program bedToBigBed in terminal \n\t\n";
-    }
-   }
-}
+    
+    print "\nTo make a BigBed file from this text file, rename file to .bed and use USCS program bedToBigBed in terminal \n\t\n";
+
 
 
 #OUTPUT REGULAR SLIDING INFORMATION WITHOUT ESSENTIALS CALCULATIONS (P-VALUES)
 
-else{
 
-#MAKE OUTPUT CSV FILE WITH WINDOW CALCULATIONS
-if (!$csv){$csv="slidingWindow.csv";}
+#MAKE OUTPUT CSV FILE WITH FITNESS WINDOW CALCULATIONS
 
+	my $fcsv="fitWindows.csv";
     print "Start csv ouput file creation: ",get_time(),"\n";
-    my $csvBIG = Text::CSV->new({ binary => 1, auto_diag => 1, eol => "\n"}) or die "Cannot use CSV: " . Text::CSV->error_diag();  # open in append mode
-    open my $file, ">", "$outdir$csv" or die "Failed to open file";
-    $csvBIG->print($file, [ "start", "end","fitness","mutant_count" ]); #header
+    my $fcsvBIG = Text::CSV->new({ binary => 1, auto_diag => 1, eol => "\n"}) or die "Cannot use CSV: " . Text::CSV->error_diag();  # open in append mode
+    open my $file, ">", "$outdir$fcsv" or die "Failed to open file";
+    $fcsvBIG->print($file, [ "start", "end","fitness","mutant_count" ]); #header
     foreach my $winLine(@allWindows){
-        $csvBIG->print($file,$winLine);
+        $fcsvBIG->print($file,$winLine);
     }
     close $file;
     print "End csv ouput file creation: ",get_time(),"\n\n";
 
 #MAKE WIG FILE---->later make BW--->IGV
-if ($wig){
     print "Start wig file creation: ",get_time(),"\n";
-    my $in = Bio::SeqIO->new(-file=>$genome);
-    my $refseq = $in->next_seq;
-    my $refname = $refseq->id;
-    open WIG, ">$outdir$wig";
-    print WIG "track type=wiggle_0 name=$wig\n";
-    print WIG "variableStep chrom=$refname\n";
+    my $fin = Bio::SeqIO->new(-file=>$ref_genome);
+    $refseq = $fin->next_seq;
+    $refname = $refseq->id;
+    my $fwig="fitWindows.wig";
+    open fWIG, ">$outdir/$fwig";
+    print fWIG "track type=wiggle_0 name=$fwig\n";
+    print fWIG "variableStep chrom=$refname\n";
     foreach my $wigLine(@allWindows){
         my @wigFields=@$wigLine;
         my $position=$wigFields[0];
         #while ($position<=$wigFields[1]){
-        print WIG $position," ",$wigFields[2],"\n";
+        print fWIG $position," ",$wigFields[2],"\n";
         #$position=$position+1;
         #}
         #print  WIG $wigFields[0]," ",$wigFields[2],"\n";
     }
-    close WIG;
+    close fWIG;
     print "End wig file creation: ",get_time(),"\n\n";
     print "If this wig file needs to be converted to a Big Wig, then use USCS program wigToBigWig in terminal: \n \t./wigToBigWig gview/12G.wig organism.txt BigWig/output.bw \n\n";
-}
+
 
 #IF GOING TO MAKE A TEXT FILE FOR BED CONVERSION TO BIGBED, NEED CHROM # IN COLUMN 0
 my @cummulative;
 if ($txtg or $txt){
     for my $line(@allWindows){
-        unshift($line, "NC_003028");
+        unshift($line, $refName);
     }
 }
 #IF MAKING A REGULAR TEXT FILE fields: [chrom,start,end,fitness,count]
@@ -646,10 +647,10 @@ if ($txtg or $txt){
     }
     close $TXTg;
     print "End grouped text file creation: ",get_time(),"\n\n";
-    if ($txt or $txtg){
-        print "\nTo make a BigBed file from this text file, rename file to .bed and use USCS program bedToBigBed in terminal \n\t\n";
-    }
-}
+
+    #print "\nTo make a BigBed file from this text file, rename file to .bed and use USCS program bedToBigBed in terminal \n\t\n";
+    
+
 
 
 
