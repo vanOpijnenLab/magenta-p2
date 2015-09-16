@@ -1,7 +1,7 @@
-# Tn-Seq Analysis Scripts
+# Blueberry Scripts
 
 
-<b> slidingWindow.pl</b>
+<b> Blueberry.pl</b>
 
   <u>Description</u>: scans the genome with a fixed size sliding window, calculating a) organismal fitness and b) essentiality based on insertion representation calculations for the genomic region included in the window<br />
   <u>Usage</u>: Input .csv file(s) (outputted from calc_fitness.pl) with reference genome. Outputs following files into a single directory: 
