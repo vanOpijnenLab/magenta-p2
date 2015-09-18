@@ -1,10 +1,14 @@
 #!/usr/bin/perl -w
 
-#Margaret Antonio 15.04.15
+#Margaret Antonio updated 15.09.15
 
+<<<<<<< HEAD
 #VERSION 16: combines version 14 and the multiple file input to array and sorting feature from version 13. Still need to: make window cutoffs...
 
 #/Volumes/Macintosh HD/Users/margaretantonio/Documents/TvOp_Lab/Tn_SeqAnalysisScripts/windowFit.pl --ref=NC_003028b2.gbk --cutoff 15 --csv windowFit/16A.csv --step 10 --size 500 --txtg ../viewer/19A.txt --txt ../viewer/19A.txt --wig 19A.wig results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv
+=======
+#../Tn_SeqAnalysisScripts/windowFit.pl --csv windowFit/22.csv results/L6_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv >runner.txt
+>>>>>>> bc08bd1ae7252375e96a48e5c44e0d346a63a591
 
 use strict;
 use Getopt::Long;
@@ -15,24 +19,31 @@ use Bio::SeqIO;
 
 #AVAILABLE OPTIONS. WILL PRINT UPON ERROR
 sub print_usage() {
+    print "\nDescription:\n";
+    print "Integrates multiple files of transposon insertion data and outputs aggregate fitness within a sliding window (specified by size and step). Can ouput files as text, csv, wig.\n";
+    print "\nCommand line: windowFit.pl <OPTIONS> <REQ OUTPUT TYPE(S)> <INPUT FILE(S)>\n\n";
     print "\nRequired:\n";
     print "In the command line (without a flag), input the name(s) of the file(s) containing fitness values for individual insertion mutants.\n";
     
     print "\nOptional:\n";
     print "--size \t The size of the sliding window(default=500) \n";
     print "--step \t The window spacing (default=10) \n";
-    print "--csv \t Name of a file to enter the .csv output for sliding windows.\n";
     print "--cutoff \tCutoff: Don't include fitness scores with average counts (c1+c2)/2 < x (default: 0)\n";
     
     print "\nMust choose at least one type of output:\n";
+    print "--csv \t Name of a file to enter the .csv output for sliding windows.\n";
     print "--wig\tCreate a wiggle file for viewing in a genome browser. Provide a filename. Also provide genome under --ref\n";
     print "--txt\t Output all data [start,end,W,count] into a text of bed file.\n";
     print "--txtg\t If consecutive windows have the same value, then group them into one window. Ouput into txt file or bed file.\n";
     print "--ref\tThe name of the reference genome file, in GenBank format. Needed for wig and txt file creation\n";
+    
+    print "--h for help\n\n";
+    
 }
 
+
 #ASSIGN INPUTS TO VARIABLES
-our ($txt,$txtg,$cutoff,$wig,$ref_genome,$infile, $csv, $step, $size);
+our ($txt,$txtg,$cutoff,$h, $wig,$ref_genome,$infile, $csv, $step, $size);
 GetOptions(
 'wig:s' => \$wig,
 'ref:s' => \$ref_genome,
@@ -43,8 +54,7 @@ GetOptions(
 'size:i' => \$size,
 'txtg:s' => \$txtg,
 'txt:s' => \$txt,
-'genome:s'=> \$genome,
-
+'h'=>\$h,
 );
 
 sub get_time() {
@@ -52,8 +62,13 @@ sub get_time() {
     return "$hour:$min:$sec";
 }
 # Just to test out the script opening
-print print_usage(),"\n";
+
 print "\n";
+if ($h){
+    print_usage();
+    exit;
+}
+
 if ($csv){print "CSV output file: ", $csv,"\n";}
 if ($txt){print "Text file for window data: $txt\n";}
 if ($txtg){print "Text file for grouped windows: $txtg\n";}
@@ -87,34 +102,42 @@ for (my $i=0; $i<$num; $i++){   #Read files from ARGV
     my $file=$ARGV[$i];
     open(my $data, '<', $file) or die "Could not open '$file' Make sure input .csv files are entered in the command line\n";
     $csvtemp->getline($data);
+    print "\t",$file,"\n";
     while (my $line = $csvtemp->getline($data)) {
         chomp $line;
         my $w = $line->[12];
+        #my $temp=$line->[0];
+        #if ($temp<500){
+        #    print $temp,"\t", $w, "\n";
+        #}
         if (!$w){next;} # For blanks
+        
         else{
             my $c1 = $line->[2];
             my $c2 = $line->[3];
             my $avg = ($c1+$c2)/2;
-            if ($avg < $cutoff) { 
-            	next; 
+            if ($avg < $cutoff) {
+                next;
             } # Skip cutoff genes.
             else {
                 my @select=($line->[0],$line->[12]);
                 my $select=\@select;
                 push(@unsorted,$select);
-                $rowCount+=1;
+                $rowCount++;
                 $last=$select->[0];
+                
             }
         }
     }
     close $data;
+    
 }
 my @sorted = sort { $a->[0] <=> $b->[0] } @unsorted;
 
 #Print test of array
 #for (my $i=0;$i<30;$i++){
-#foreach my $element ( @{ $sorted[$i] }){print $element,"\t";}
-#print "\n";}
+#    foreach my $element ( @{ $sorted[$i] }){print $element,"\t";}
+#   print "\n";}
 
 print "Finished input array ",get_time(),"\n";
 
@@ -132,33 +155,34 @@ sub OneWindow{
     my $Wavg=0;
     my $Wcount=0;
     my $Wsum=0;
+    my @indiv;
     my $i;
     for ($i=$marker;$i<$rowCount;$i++){   #looping through whole file, begin at marker until end of file but really stops at window end
         my @fields=@{$sorted[$i]};
         my $site=$fields[0];
         #if ($fields[0]<$Wstart){  #if deleted, error shows up
-        #    next;
+        #next;
         #}
         if ($site<=$Wend){
-        	if ($site<($Wstart+$step)){
-            	$marker++;
-        	}
+            if ($site<($Wstart+$step)){
+                $marker++;
+            }
             $Wsum+=$fields[1];
-            $Wcount+=1;
+            $Wcount++; #print $Wcount, "\t",$fields[0],"\t",$fields[1],"\n";
         }
-        else{   #if finished with that window ($site>$Wend) then calculate window fitness     
-			if ($Wcount!=0){
-				$Wavg=sprintf("%.2f",$Wsum/$Wcount);
-				my @window=($Wstart,$Wend,$Wavg,$Wcount);
-				#print @Wwindow;
-				return (\@window);
-			}
-			else{
-				return -1;  #Because count=0 (i.e. there were no insertion mutants in that window)
-			}  
-			
-		}
-    }   		
+        else{   #if finished with that window ($site>$Wend) then calculate window fitness
+            if ($Wcount!=0){
+                $Wavg=sprintf("%.2f",$Wsum/$Wcount);
+                my @window=($Wstart,$Wend,$Wavg,$Wcount);
+                #print @Wwindow;
+                return (\@window);
+            }
+            else{
+                return -1;  #Because count=0 (i.e. there were no insertion mutants in that window)
+            }
+            
+        }
+    }
 }
 
 print "Start calculation: ",get_time(),"\n";
@@ -168,6 +192,7 @@ my $windowNum=0;
 my @allWindows=(); #will be a 2D array containing all window info to be written into output file
 
 #WHILE LOOP TO CALL THE ONE WINDOW SUBROUTINE FOR CALCULATIONS===INCREMENTS START AND END VALUES OF THE WINDOW
+
 while ($end<=$last-$size){  #100,000bp-->9,950 windows--> only 8500 windows in csv because 0
     my($window)=OneWindow($start,$end);
     if ($window!=-1){
