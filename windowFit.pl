@@ -4,7 +4,7 @@
 
 #VERSION 16: combines version 14 and the multiple file input to array and sorting feature from version 13. Still need to: make window cutoffs...
 
-#../script/windowFit16.pl --ref=NC_003028b2.gbk --cutoff 15 --csv windowFit/16A.csv --step 10 --size 500 --txtg ../viewer/16Agrouped.txt --txt ../viewer/16A.txt --wig 14B.wig results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv
+#/Volumes/Macintosh HD/Users/margaretantonio/Documents/TvOp_Lab/Tn_SeqAnalysisScripts/windowFit.pl --ref=NC_003028b2.gbk --cutoff 15 --csv windowFit/16A.csv --step 10 --size 500 --txtg ../viewer/19A.txt --txt ../viewer/19A.txt --wig 19A.wig results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv
 
 use strict;
 use Getopt::Long;
