@@ -6,7 +6,7 @@
 #essentials update: now adding p-value to each window. For each window of x possible TA sites, generate 10,000 sets of x TA sites and then get ratio for (insertions at those TA sites) /(TA sites).
 #essentials update: makes one null distribution "library" of random 10,000 sites (instead of remaking it every time) and uses it for all statistical testing. Much faster.
 
-#../Tn_SeqAnalysisScripts/essentials.pl  --ref=NC_003028b2.gbk --essential tigr4_genome.fasta --csv essentialTest/1Bessentials.csv results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv
+#perl ../Bluberries/slidingWindow.pl  --ref=NC_003028b2.gbk --essential tigr4_genome.fasta --csv essentialTest/1Bessentials.csv results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv --log --outdir 5slidingWindow
 
 #../Tn_SeqAnalysisScripts/essentials.pl --ref=NC_003028b2.gbk  --excel essentialTest/kill.xls --essential tigr4_genome.fasta --csv essentialTest/1Bessential.csv results/L1_2394eVI_PennG.csv >logessentials.txt
 
@@ -97,7 +97,7 @@ if ($h){
 }
 if (!$round){$round='%.3f';}
 if (!$outdir){
-	$outdir="slidingWindow4";
+	$outdir="slidingWindow";
 }
 	mkpath($outdir);
 
@@ -187,6 +187,8 @@ print "\n---------Creating sliding windows across the genome--------\n\n";
 
 my $index=-1;
 my $marker=0;
+my $totalInsert=0;
+my $totalWindows=0;
 
 
 #SUBROUTINE FOR EACH WINDOW CALCULATION
@@ -221,6 +223,8 @@ sub OneWindow{
             if ($Wcount!=0){
                 $Wavg=sprintf("%.2f",$Wsum/$Wcount);
                 my @window=($Wstart,$Wend,$Wavg,$Wcount,$insertion);
+                $totalWindows++;
+                $totalInsert+=$insertion;
                 #print @Wwindow, "\n";
                 return (\@window);
             }
@@ -230,6 +234,8 @@ sub OneWindow{
         }
     }
 }
+
+
 
 
 print "Start calculation: ",get_time(),"\n";
@@ -249,6 +255,9 @@ while ($end<=$last-$size){  #100,000bp-->9,950 windows--> only 8500 windows in c
     $end=$end+$step;
 }
 print "End calculation: ",get_time(),"\n";
+
+my $avgInsert=$totalInsert/$totalWindows;
+print "Average number of insertions for $size base pair windows: $avgInsert\n";
 
 #ESSENTIALS: Counting the number of TA sites in the genome and whether an insertion occurred there or not
 
@@ -499,6 +508,7 @@ my $in = Bio::SeqIO->new(-file=>$ref_genome);
     print "End wig file creation: ",get_time(),"\n\n";
     print "If this wig file needs to be converted to a Big Wig, then use USCS program wigToBigWig in terminal: \n \t./wigToBigWig gview/12G.wig organism.txt BigWig/output.bw \n\n";
 }
+printwig();
 
 #IF GOING TO MAKE A TEXT FILE FOR BED CONVERSION TO BIGBED, NEED CHROM # IN COLUMN 0
 my @ecummulative;
@@ -557,7 +567,7 @@ if ($txt){
 	my $fcsv="fitWindows.csv";
     print "Start csv ouput file creation: ",get_time(),"\n";
     my $fcsvBIG = Text::CSV->new({ binary => 1, auto_diag => 1, eol => "\n"}) or die "Cannot use CSV: " . Text::CSV->error_diag();  # open in append mode
-    open my $file, ">", "$outdir$fcsv" or die "Failed to open file";
+    open my $file, ">", "$outdir$/fcsv" or die "Failed to open file";
     $fcsvBIG->print($file, [ "start", "end","fitness","mutant_count" ]); #header
     foreach my $winLine(@allWindows){
         $fcsvBIG->print($file,$winLine);
