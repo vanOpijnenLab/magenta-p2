@@ -97,7 +97,7 @@ if ($h){
 }
 if (!$round){$round='%.3f';}
 if (!$outdir){
-	$outdir="slidingWindow";
+	$outdir="slidingWindow7";
 }
 	mkpath($outdir);
 
@@ -140,30 +140,30 @@ print "\tNumber of csv files: ", $num,"\n";
 print "[";
 for (my $i=0; $i<$num; $i++){   #Read files from ARGV
 	print "...",$i+1,"...";
-    my $csvtemp=Text::CSV->new;
     my $file=$ARGV[$i];
-    open(my $data, '<', $file) or die "Could not open '$file' Make sure input .csv files are entered in the command line\n";
-    $csvtemp->getline($data);
-    
-    while (my $line = $csvtemp->getline($data)) {
-        chomp $line;
-        my $w = $line->[12];
+  
+    open(DATA, '<', $file) or die "Could not open '$file' Make sure input .csv files are entered in the command line\n";
+      my $dummy=<DATA>;
+    while (my $entry = <DATA>) {
+    	chomp $entry;
+		my @line=split(",",$entry);
+        my $w = $line[12];
         if (!$w){next;} # For blanks
         else{
-            my $c1 = $line->[2];
-            my $c2 = $line->[3];
+            my $c1 = $line[2];
+            my $c2 = $line[3];
             my $avg = ($c1+$c2)/2;
             if ($avg > $cutoff) {
-                my @select=($line->[0],$line->[12]);
+                my @select=($line[0],$line[12]);
                 my $select=\@select;
                 push(@unsorted,$select);
-                push(@insertPos,$line->[0]);   #keep track of actual insertion site position
-                $last=$select->[0];
+                push(@insertPos,$line[0]);   #keep track of actual insertion site position
+                $last=$select[0];
                 $rowCount++;  
             }
         }
     }
-    close $data;
+    close DATA;
 }
 print "]";
 
@@ -312,12 +312,10 @@ print "\n---------Assessing essentiality of genome region in each window--------
         $countTA++;    
     }
     my $FILE1 = "$outdir/allTAsites.txt";
-    unless(open ALL_TA, ">", $FILE1){
-		die "\nUnable to create $FILE1:\n$!";
-	}
-    foreach (@allTAsites){
-    	foreach (@_){
-    		printf ALL_TA $_, "\t";
+    open (ALL_TA, ">", $FILE1);
+    foreach my $sit(@allTAsites){
+    	foreach (@$sit){
+    		print ALL_TA $_, "\t";
     	}
     	printf ALL_TA "\n";
     }
