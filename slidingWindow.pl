@@ -6,7 +6,8 @@
 #essentials update: now adding p-value to each window. For each window of x possible TA sites, generate 10,000 sets of x TA sites and then get ratio for (insertions at those TA sites) /(TA sites).
 #essentials update: makes one null distribution "library" of random 10,000 sites (instead of remaking it every time) and uses it for all statistical testing. Much faster.
 
-#perl ../Bluberries/slidingWindow.pl  --ref=NC_003028b2.gbk --essential tigr4_genome.fasta --csv essentialTest/1Bessentials.csv results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv --log --outdir 5slidingWindow
+#perl ../Bluberries/slidingWindow.pl  --ref=NC_003028b2.gbk --size 150 --essential tigr4_genome.fasta --csv essentialTest/1Bessentials.csv results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv --log --outdir ../sandraAnalysis/wind150
+
 
 #../Tn_SeqAnalysisScripts/essentials.pl --ref=NC_003028b2.gbk  --excel essentialTest/kill.xls --essential tigr4_genome.fasta --csv essentialTest/1Bessential.csv results/L1_2394eVI_PennG.csv >logessentials.txt
 
@@ -19,12 +20,10 @@
 use strict;
 use Getopt::Long;
 use warnings;
-use Text::CSV_XS;
 use Text::CSV;
 use Bio::SeqIO;
 use Data::Random qw(:all);
 use List::Util qw(sum);
-use Spreadsheet::WriteExcel;
 use List::BinarySearch qw( :all );
 use List::BinarySearch::XS;
 use List::MoreUtils qw(uniq);
@@ -33,7 +32,7 @@ use File::Basename;
 use feature qw/say/;
 use autodie;
 
-
+use Text::CSV;
 
 #AVAILABLE OPTIONS. WILL PRINT UPON ERROR
 sub print_usage() {
@@ -97,7 +96,7 @@ if ($h){
 }
 if (!$round){$round='%.3f';}
 if (!$outdir){
-	$outdir="slidingWindow7";
+	$outdir="test2_151011";
 }
 	mkpath($outdir);
 
@@ -434,7 +433,7 @@ sub pvalue{
 print "Start p-value calculation for individual windows: ",get_time(),"\n\n";
 
 #my $allWindows=\@allWindows;
-for (my $i=0;$i<$rowCount;$i++){
+for (my $i=0;$i<scalar @allWindows;$i++){
     my @win=@{$allWindows[$i]};
     my $starter=$win[0];
     my $ender=$win[1];
@@ -446,13 +445,17 @@ for (my $i=0;$i<$rowCount;$i++){
     my @c = $seq =~ /$ta/g;
     my $TAsites = scalar @c;
     push(@win,$TAsites);
-    my $countAvg=$win[3]/$TAsites;
+    my $countAvg=$win[4]/$TAsites;
     #print "\tCountAVG=$countAvg\n";
     push (@win,$countAvg);
     my $pval=pvalue($countAvg,$TAsites);
     push (@win,$pval);
     push (@newWindows,\@win);
-    
+    foreach (@win){
+        print $_;
+        print "\t";
+    }
+    print "\n";
     $printNum++;
     }
 
@@ -506,7 +509,7 @@ my $in = Bio::SeqIO->new(-file=>$ref_genome);
     print "End wig file creation: ",get_time(),"\n\n";
     print "If this wig file needs to be converted to a Big Wig, then use USCS program wigToBigWig in terminal: \n \t./wigToBigWig gview/12G.wig organism.txt BigWig/output.bw \n\n";
 }
-printwig();
+#printwig();
 
 #IF GOING TO MAKE A TEXT FILE FOR BED CONVERSION TO BIGBED, NEED CHROM # IN COLUMN 0
 my @ecummulative;
