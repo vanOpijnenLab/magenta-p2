@@ -288,7 +288,7 @@ print "\n---------Assessing essentiality of genome region in each window--------
     my @allTAsites; #2d array to hold all occurences of TA sites in genome
     my $unmatchedCount=0;
     my $offset=0;
-    my $genPos = index($genome, 'TA',$offset);
+    my $genPos = index($genome,'TA',$offset);
 
     while (($genPos != -1) and ($pos!=scalar @insertPos)) {
         my $res=0;
