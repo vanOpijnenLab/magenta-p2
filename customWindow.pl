@@ -1,21 +1,17 @@
 #!/usr/bin/perl -w
 
-#Margaret Antonio 15.04.15
+#Margaret Antonio 15.10.18
 
-#essentials.pl: An attempt at calculating window regions with underrepresented number of reads
-#essentials update: now adding p-value to each window. For each window of x possible TA sites, generate 10,000 sets of x TA sites and then get ratio for (insertions at those TA sites) /(TA sites).
-#essentials update: makes one null distribution "library" of random 10,000 sites (instead of remaking it every time) and uses it for all statistical testing. Much faster.
-
-#perl ../Bluberries/slidingWindow.pl  --ref=NC_003028b2.gbk --size 150 --essential tigr4_genome.fasta --csv essentialTest/1Bessentials.csv results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv --log --outdir ../sandraAnalysis/wind150
+#Description: Given a tab delimited text file of genome region name, start position, and end position, customWindow.pl
+    #outputs Tn-Seq stats for those regions: # of mutants, # of unique insertions, # of TA sites, ratio of insertions
+    #to TA sites, aggregate fitness value, p-value for essentiality
 
 
-#../Tn_SeqAnalysisScripts/essentials.pl --ref=NC_003028b2.gbk  --excel essentialTest/kill.xls --essential tigr4_genome.fasta --csv essentialTest/1Bessential.csv results/L1_2394eVI_PennG.csv >logessentials.txt
+#perl ../Bluberries/customWindow.pl  --ref=NC_003028b2.gbk --essential tigr4_genome.fasta
+        #results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv
+        #--log --custom <file>
 
-#results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv
 
-#../Tn_SeqAnalysisScripts/essentials.pl  --ref=NC_003028b2.gbk --essential tigr4_genome.fasta results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv  --log --outdir 1slidingWindow
-
-#results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv
 
 use strict;
 use Getopt::Long;
@@ -57,6 +53,7 @@ sub print_usage() {
     print "--txt\t Output all data [start,end,W,count] into a text of bed file.\n";
     print "--txtg\t If consecutive windows have the same value, then group them into one window. Ouput into txt file or bed file.\n";
     print "--ref\tThe name of the reference genome file, in GenBank format. Needed for wig and txt file creation\n";
+    print "--custom\t Tab delimited text file for custom window regions : name | start | end \n";
 
 }
 
@@ -97,7 +94,7 @@ if ($h){
 }
 if (!$round){$round='%.3f';}
 if (!$outdir){
-	$outdir="test10_151013";
+	$outdir="customWindow";
 }
 	mkpath($outdir);
 
@@ -245,7 +242,7 @@ sub OneWindow{
 
 print "Start calculation: ",get_time(),"\n";
 
-open (CUST, '<', "essentialGenes.txt");
+open (CUST, '<', $custom);
 my @allWindows;
 while(my $line=<CUST>){
     chomp $line;
