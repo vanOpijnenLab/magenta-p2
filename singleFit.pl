@@ -1,9 +1,9 @@
 #!/usr/bin/perl -w
 
-#Margaret Antonio updated 15.09.15
+#Margaret Antonio updated 15.10.18
 
 
-#perl ../filterMerge.pl <all .csv input files L1_2394....>
+#perl ../singleFit.pl <all .csv input files L1_2394....>
 
 use strict;
 use Getopt::Long;
