@@ -16,7 +16,6 @@
   - <b>groupedWindows.txt</b> Grouped consecutive windows with same fitness value 
   - <b>log.txt</b> If the --log option was selected, all standard output goes here
   
-  
 <b>merge.pl</b>
 
   Description: Merges and sorts multiple comma-separated (.csv) files<br />
@@ -26,4 +25,25 @@
 
   Description: Counts number of TA sites in the genome<br />
   Usage: input genome, outputs number of TA sites
+
+<b>customWindow.pl</b>
+
+  Description: Given a tab delimited text file of genome region name, start position, and end position, customWindow.pl 
+	outputs Tn-Seq stats for those regions: # of mutants, # of unique insertions, # of TA sites, ratio of insertions
+	to TA sites, aggregate fitness value, p-value for essentiality <br />
+  Usage: input GBK file, fasta file for genome sequence, results files, custom region file	
+
+<b>getCoordsGBK.py<\b>
+
+  Description: Get gene names and coordinates from a GBK file.<br /> 
+	Output file can be inputted into Gviz as an annotation track for visualization.<br />
+  Usage: python getCoordsGBK.py <input GBK file> <name of output file>
+
+<b>singleFit.pl<\b>
+  
+  Description: Gets a single fitness value for each insertion based on multiple mutants (lanes)<br />
+  Usage: perl ../singleFit.pl <all results.csv files>
+
+
+
   
