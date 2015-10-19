@@ -33,13 +33,13 @@
 	to TA sites, aggregate fitness value, p-value for essentiality <br />
   Usage: input GBK file, fasta file for genome sequence, results files, custom region file	
 
-<b>getCoordsGBK.py<\b>
+<b>getCoordsGBK.py</b>
 
   Description: Get gene names and coordinates from a GBK file.<br /> 
 	Output file can be inputted into Gviz as an annotation track for visualization.<br />
   Usage: python getCoordsGBK.py <input GBK file> <name of output file>
 
-<b>singleFit.pl<\b>
+<b>singleFit.pl</b>
   
   Description: Gets a single fitness value for each insertion based on multiple mutants (lanes)<br />
   Usage: perl ../singleFit.pl <all results.csv files>
