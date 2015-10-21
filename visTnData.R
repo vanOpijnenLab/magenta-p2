@@ -8,6 +8,7 @@ getTracks<-function(fromCoord,toCoord){
   geneFile="tigr4_genes.txt"
   singleFitFile="singleFit.txt"
   
+
   #so Gviz doesn't look for NC_003028 in the UCSC site
   options(ucscChromosomeNames = FALSE)
   
@@ -42,6 +43,20 @@ getTracks<-function(fromCoord,toCoord){
                             showFeatureId=TRUE,showId=FALSE,id=insertFit$fit,fill="transparent",
                             fontcolor.item="black",col.frame="transparent",
                             background.title="transparent",col="transparent",name="Fitness Value")
+  
+  Wavg<-function(fit,fromCoord,toCoord){
+    sum=0; count=0;i=1;
+    while (fit[i,2]<=fromCoord) i<-i+1
+    while (fit[i,2]<toCoord){
+      sum<-sum+fit[i,4]; count<-count+1;
+      print(fit[i,4]);
+      i<-i+1;
+    }
+    avg<-(sum/count);
+    return(avg);
+  }
+  
+  
   
   ht1 <- HighlightTrack(trackList = list(gTrack,sTrack,anTrack,aggTrack,fitTrack), start =fromCoord,end= toCoord,chromosome = "NC_003028")
   #plotTracks(list(gTrack,sTrack,anTrack,aggTrack,fitTrack),
