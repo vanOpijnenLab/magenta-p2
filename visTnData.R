@@ -42,7 +42,7 @@ getTracks<-function(fromCoord,toCoord,x,y){
   output<-Wavg(fit,fromCoord,toCoord)
   avg<-round(as.numeric(output[1]),digits=4)
   count<-output[2]
-  avgText<-paste0("Average= ",avg)
+  avgText<-paste0("Average= ",avg,"  |  [Fitness= ", avg+1, "]")
   avgTrack<-AnnotationTrack(start=fromCoord,end=toCoord,chromosome="NC_003028",id=avgText,showFeatureId=TRUE,fill="darkred")
   
   #Track for individual fitness values when the window is small enough
