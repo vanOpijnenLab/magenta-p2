@@ -7,7 +7,7 @@
     #to TA sites, aggregate fitness value, p-value for essentiality
 
 
-#perl ../Bluberries/customWindow.pl  --ref=NC_003028b2.gbk --essential tigr4_genome.fasta
+#perl ../Bluberries/customWindow.pl  --ref=NC_003028b2.gbk --fasta tigr4_genome.fasta
         #results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv
         #--log --custom <file>
 
@@ -54,12 +54,13 @@ sub print_usage() {
     print "--txtg\t If consecutive windows have the same value, then group them into one window. Ouput into txt file or bed file.\n";
     print "--ref\tThe name of the reference genome file, in GenBank format. Needed for wig and txt file creation\n";
     print "--custom\t Tab delimited text file for custom window regions : name | start | end \n";
+    print "--indir\t Input file directory\n";
 
 }
 
 
 #ASSIGN INPUTS TO VARIABLES
-our ($round,$random,$txt,$txtg,$cutoff,$wig,$infile, $csv, $step, $h, $outdir,$size,$genome, $log, $ref_genome,$tan,$custom);
+our ($round,$random,$txt,$txtg,$cutoff,$wig,$infile, $csv, $step, $h, $outdir,$size,$genome, $log, $ref_genome,$tan,$custom,$indir);
 GetOptions(
 'wig:s' => \$wig,
 'ref:s' => \$ref_genome,
@@ -72,12 +73,13 @@ GetOptions(
 'txt:s' => \$txt,
 'random:s' =>\$random,
 'round:i' =>\$round,
-'essentials:s' => \$genome,
+'fasta:s' => \$genome,
 'outdir' =>\$outdir,
 'log' => \$log,
 'usage' => \$h,
 'tan'=>\$tan,
-'custom'=>\$custom,
+'custom:s'=>\$custom,
+'indir:s'=>\$indir,
 );
 
 sub get_time() {
@@ -127,17 +129,42 @@ my $rowCount=-1;
 my $last=0;
 my @unsorted;
 my @insertPos; #array to hold all positions of insertions. Going to use this later to match up with TA sites
-my $num=$#ARGV+1;
+
+print "\n---------Importing files--------\n";
+print "\tStart input array ",get_time(),"\n";
+
+
+
+#Go through each file from the commandline (ARGV array) and read each line as an array into select array if values satisfy the cutoff
+my @files;
+if ($indir){
+    my $directory="$indir";
+    opendir(DIR, $directory) or die "couldn't open $directory: $!\n";
+    my @direct= readdir DIR;
+    my $tail=".csv";
+    foreach (@direct){
+        if (index($_, $tail) != -1){
+            $_=$indir.$_;
+            push (@files,$_);
+        }
+    }
+    closedir DIR;
+}
+else{
+    @files=@ARGV;
+}
+my $num=(scalar @files);
 print "\n---------Importing files--------\n";
 print "\tStart input array ",get_time(),"\n";
 print "\tNumber of csv files: ", $num,"\n";
 
 
 #Go through each file from the commandline (ARGV array) and read each line as an array into select array if values satisfy the cutoff
-print "[";
 for (my $i=0; $i<$num; $i++){   #Read files from ARGV
-	print "...",$i+1,"...";
-    my $file=$ARGV[$i];
+    print "File #",$i+1,"\t";
+    
+    my $file=$files[$i];
+    print $file,"\n";
   
     open(DATA, '<', $file) or die "Could not open '$file' Make sure input .csv files are entered in the command line\n";
     my $dummy=<DATA>;
@@ -286,7 +313,7 @@ print "\n---------Assessing essentiality of genome region in each window--------
     my @sites;
 
     #First read fasta file into a string
-    my $seqio = Bio::SeqIO->new(-file => "tigr4_genome.fasta", '-format' => 'Fasta');
+    my $seqio = Bio::SeqIO->new(-file => $genome, '-format' => 'Fasta');
     my $prev;
     my $total=0;
     while(my $seq = $seqio->next_seq) {
@@ -498,7 +525,7 @@ for (my $i=0;$i<scalar @allWindows;$i++){
     my $csvBIG = Text::CSV->new({ binary => 1, auto_diag => 1, eol => "\n"}) or die "Cannot use CSV: " . Text::CSV->error_diag();  
     # open in append mode
     
-	open (my $FH8, ">$outdir/essentialWindows.csv");
+	open (my $FH8, ">$outdir/customWindows.csv");
 	
     $csvBIG->print($FH8, [ "region", "start", "end","fitness","mutant_count","insertions","TA_sites","ratio","p-value"]); #header
     foreach my $winLine(@newWindows){
