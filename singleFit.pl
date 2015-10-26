@@ -140,11 +140,11 @@ foreach my $val(values %select){
 		
 
 #IF MAKING A REGULAR TEXT FILE fields: [chrom,start,end,fitness,count]
-open TXT,'>', "heatPrep151004.txt";
+open TXT,'>', "allLanesFitness.txt";
     #print TXT "Start text file creation time: ",get_time(),"\n";
-print TXT "seqnames\tstart\tend\tcontrol\tL1\tL3\tL4\tL5\tL6\n";
+print TXT "start\tend\tcontrol\tL1\tL3\tL4\tL5\tL6\n";
 foreach my $entry (sort {$a<=>$b}  keys %select) {
-    print TXT "genome\t",$entry,"\t",$entry+1,"\t";
+    print TXT $entry,"\t",$entry+1,"\t";
     my @entryFits=@{$select{$entry}};
     foreach (@entryFits){
     	print TXT $_, "\t";
@@ -156,7 +156,7 @@ close TXT;
 
 open ALL,'>', "singleFit.txt";
 for my $entry (sort {$a<=>$b} keys %select) {
-    print ALL "genome\t",$entry,"\t",$entry+1,"\t";
+    print ALL $entry,"\t",$entry+1,"\t";
     my @entryFits=@{$select{$entry}};
     my $sum=0; my $count=0;    
     foreach (@entryFits){
