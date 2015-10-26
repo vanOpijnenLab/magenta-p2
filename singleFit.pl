@@ -24,7 +24,7 @@ sub print_usage() {
 
 
 #ASSIGN INPUTS TO VARIABLES
-our ($txt,$txtg,$cutoff,$h, $wig,$ref_genome,$infile, $csv, $step, $size);
+our ($txt,$txtg,$cutoff,$h, $wig,$ref_genome,$infile, $csv, $step,$indir, $size);
 GetOptions(
 'wig:s' => \$wig,
 'ref:s' => \$ref_genome,
@@ -35,6 +35,7 @@ GetOptions(
 'size:i' => \$size,
 'txtg:s' => \$txtg,
 'txt:s' => \$txt,
+'indir:s' => \$indir,
 'h'=>\$h,
 );
 
@@ -59,18 +60,36 @@ print "\nStart input array ",get_time(),"\n";
 my $rowCount=-1;
 my $last;
 my @unsorted;
-my $num=$#ARGV+1;
+
+my @files;
+if ($indir){
+    my $directory="$indir";
+    opendir(DIR, $directory) or die "couldn't open $directory: $!\n";
+    my @direct= readdir DIR;
+    my $tail=".csv";
+    foreach (@direct){
+        if (index($_, $tail) != -1){
+            $_=$indir.$_;
+            push (@files,$_);
+        }
+    }
+    closedir DIR;
+}
+else{
+    @files=@ARGV;
+}
+my $num=(scalar @files);
+
+my $num=scalar @files;
 print "\nNumber of files in csv: ", $num,"\n";
 
 my %select; #this is a hash to store insertion position and fitness value at that position for each file (lane)
 
 for (my $i=0; $i<$num; $i++){   #Read files from ARGV---loops once for each file in ARGV
-    my $file=$ARGV[$i];
+    my $file=$files[$i];
     open(DATA,'<', $file) or die "Could not open '$file' Make sure input .csv files are entered in the command line\n";
-    print "opened!";
-    print "\t",$file,"\n";
+    print "File #",$i+1,"\t",$file,"\n";
     my $dummy=<DATA>;
-    print "$dummy\t\t";
     while (my $line = <DATA>) {
         		my @fields=split(",",$line);
         my $w = $fields[12];
@@ -124,8 +143,8 @@ foreach my $val(values %select){
 open TXT,'>', "heatPrep151004.txt";
     #print TXT "Start text file creation time: ",get_time(),"\n";
 print TXT "seqnames\tstart\tend\tcontrol\tL1\tL3\tL4\tL5\tL6\n";
-foreach my $entry (sort keys %select) {
-    print TXT "NC003028\t",$entry,"\t",$entry+1,"\t";
+foreach my $entry (sort {$a<=>$b}  keys %select) {
+    print TXT "genome\t",$entry,"\t",$entry+1,"\t";
     my @entryFits=@{$select{$entry}};
     foreach (@entryFits){
     	print TXT $_, "\t";
@@ -136,8 +155,8 @@ close TXT;
 
 
 open ALL,'>', "singleFit.txt";
-foreach my $entry (sort keys %select) {
-    print ALL "NC003028\t",$entry,"\t",$entry+1,"\t";
+for my $entry (sort {$a<=>$b} keys %select) {
+    print ALL "genome\t",$entry,"\t",$entry+1,"\t";
     my @entryFits=@{$select{$entry}};
     my $sum=0; my $count=0;    
     foreach (@entryFits){
