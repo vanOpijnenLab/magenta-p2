@@ -1,21 +1,13 @@
 #!/usr/bin/perl -w
 
-#Margaret Antonio 15.04.15
+#Margaret Antonio 15.10.26
 
-#essentials.pl: An attempt at calculating window regions with underrepresented number of reads
-#essentials update: now adding p-value to each window. For each window of x possible TA sites, generate 10,000 sets of x TA sites and then get ratio for (insertions at those TA sites) /(TA sites).
-#essentials update: makes one null distribution "library" of random 10,000 sites (instead of remaking it every time) and uses it for all statistical testing. Much faster.
+#SLIDING WINDOW: a culmination of fitness calculation, essentiality determination,
+    #and TA site and insertion statistics for automatically generated sliding widnow throughout genome
 
-#perl ../Bluberries/slidingWindow.pl  --ref=NC_003028b2.gbk --size 150 --essential tigr4_genome.fasta --csv essentialTest/1Bessentials.csv results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv --log --outdir ../sandraAnalysis/wind150
+#perl ../Blueberries/slidingWindow.pl --size 500 --fasta tigr4_genome.fasta --indir 2394_PennG/ --log --ref NC_003028b2.gbk
 
 
-#../Tn_SeqAnalysisScripts/essentials.pl --ref=NC_003028b2.gbk  --excel essentialTest/kill.xls --essential tigr4_genome.fasta --csv essentialTest/1Bessential.csv results/L1_2394eVI_PennG.csv >logessentials.txt
-
-#results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv
-
-#../Tn_SeqAnalysisScripts/essentials.pl  --ref=NC_003028b2.gbk --essential tigr4_genome.fasta results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv  --log --outdir 1slidingWindow
-
-#results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv
 
 use strict;
 use Getopt::Long;
@@ -47,7 +39,8 @@ sub print_usage() {
     print "--cutoff \tCutoff: Don't include fitness scores with average counts (c1+c2)/2 < x (default: 0)\n";
     print "--essentials \t Calculate genome region essentiality based on transposon insertion representation\n";
     print "--outdir\tSpecify name of new directory for all output files\n";
-    print "--log\t Send all output to a log file instead of the terminal";
+    print "--log\t Send all output to a log file instead of the terminal\n";
+    print "--indir\t Directory containing all input files (results files from calc fitness script\n";
     print "--usage\t Print usage\n";
     print "--tan\t Max number of TA sites in each window---used for creating null distribution library (default: 100)";
     
@@ -62,7 +55,7 @@ sub print_usage() {
 
 
 #ASSIGN INPUTS TO VARIABLES
-our ($round,$random,$txt,$txtg,$cutoff,$wig,$infile, $csv, $step, $h, $outdir,$size,$genome, $log, $ref_genome,$tan);
+our ($round,$random,$txt,$txtg,$cutoff,$wig,$infile, $csv, $step, $h, $outdir,$size,$fasta, $log, $ref_genome,$tan,$indir);
 GetOptions(
 'wig:s' => \$wig,
 'ref:s' => \$ref_genome,
@@ -75,11 +68,12 @@ GetOptions(
 'txt:s' => \$txt,
 'random:s' =>\$random,
 'round:i' =>\$round,
-'essentials:s' => \$genome,
+'fasta:s' => \$fasta,
 'outdir' =>\$outdir,
 'log' => \$log,
 'usage' => \$h,
 'tan'=>\$tan,
+'indir:s'=>\$indir,
 );
 
 sub get_time() {
@@ -96,7 +90,7 @@ if ($h){
 }
 if (!$round){$round='%.3f';}
 if (!$outdir){
-	$outdir="test2_151011";
+	$outdir="C-151025";
 }
 	mkpath($outdir);
 
@@ -129,18 +123,37 @@ my $rowCount=-1;
 my $last=0;
 my @unsorted;
 my @insertPos; #array to hold all positions of insertions. Going to use this later to match up with TA sites
-my $num=$#ARGV+1;
+
+my @files;
+if ($indir){
+    my $directory="$indir";
+    opendir(DIR, $directory) or die "couldn't open $directory: $!\n";
+    my @direct= readdir DIR;
+    my $tail=".csv";
+    foreach (@direct){
+        if (index($_, $tail) != -1){
+            $_=$indir.$_;
+            push (@files,$_);
+        }
+    }
+    closedir DIR;
+}
+else{
+    @files=@ARGV;
+}
+my $num=(scalar @files);
 print "\n---------Importing files--------\n";
 print "\tStart input array ",get_time(),"\n";
 print "\tNumber of csv files: ", $num,"\n";
 
 
 #Go through each file from the commandline (ARGV array) and read each line as an array into select array if values satisfy the cutoff
-print "[";
 for (my $i=0; $i<$num; $i++){   #Read files from ARGV
-	print "...",$i+1,"...";
-    my $file=$ARGV[$i];
-  
+	print "File #",$i+1,"\t";
+    
+    my $file=$files[$i];
+    print $file,"\n";
+    
     open(DATA, '<', $file) or die "Could not open '$file' Make sure input .csv files are entered in the command line\n";
       my $dummy=<DATA>;
     while (my $entry = <DATA>) {
@@ -164,7 +177,6 @@ for (my $i=0; $i<$num; $i++){   #Read files from ARGV
     }
     close DATA;
 }
-print "]";
 
 my @sorted = sort { $a->[0] <=> $b->[0] } @unsorted;
 
@@ -265,15 +277,15 @@ print "\n---------Assessing essentiality of genome region in each window--------
     my @sites;
 
     #First read fasta file into a string
-    my $seqio = Bio::SeqIO->new(-file => "tigr4_genome.fasta", '-format' => 'Fasta');
+    my $seqio = Bio::SeqIO->new(-file => $fasta, '-format' => 'Fasta');
     my $prev;
     my $total=0;
     while(my $seq = $seqio->next_seq) {
-        $genome = $seq->seq;
+        $fasta = $seq->seq;
     }
     #Get number of "TA" sites, regardless of insertion---this is just the fasta file
     my $x="TA";
-    my @c = $genome =~ /$x/g;
+    my @c = $fasta =~ /$x/g;
     my $countTA = @c;
     
     #At what positions in the genome do TA sites occur?
@@ -288,7 +300,7 @@ print "\n---------Assessing essentiality of genome region in each window--------
     my @allTAsites; #2d array to hold all occurences of TA sites in genome
     my $unmatchedCount=0;
     my $offset=0;
-    my $genPos = index($genome,'TA',$offset);
+    my $genPos = index($fasta,'TA',$offset);
 
     while (($genPos != -1) and ($pos!=scalar @insertPos)) {
         my $res=0;
@@ -307,7 +319,7 @@ print "\n---------Assessing essentiality of genome region in each window--------
         	#push the 0 or 1 onto the array @selector---going to use this to draw random sets for the null distribution
         push (@allTAsites,\@sites);
         $offset = $genPos + 1;
-        $genPos = index($genome, 'TA', $offset);
+        $genPos = index($fasta, 'TA', $offset);
         $countTA++;    
     }
     my $FILE1 = "$outdir/allTAsites.txt";
@@ -324,7 +336,7 @@ print "\n---------Assessing essentiality of genome region in each window--------
 		die "\nUnable to create $FILE2:\n$!";
 	}
     foreach (@unmatched){
-        printf UNM $_, "\n";
+        print UNM $_, "\n";
     }
     close UNM;
     
@@ -416,7 +428,7 @@ sub pvalue{
     
     #------------------------------------------------------------------------------------------------------------------------------------------------------
     
-    print "\n In case you were wondering....the size of genome is: ", length($genome), " bp\n";
+    print "\n In case you were wondering....the size of genome is: ", length($fasta), " bp\n";
     
     #Now we have an array called @allTAsites which contains every TAsite position with a 0 next to it for "no insertion".
     #Now just need to replace 0 with 1 if there IS and insertion at that site
@@ -440,22 +452,22 @@ for (my $i=0;$i<scalar @allWindows;$i++){
     #print "num $printNum -->\tStart pos: $starter\tEnd pos: $ender\n";
     #How many TA sites are there from $genome[$start] to $genome[$end]?
 
-    my $seq = substr($genome,$starter-1,500);  #start-1 becase $start and $end are positions in genome starting at 1,2,3.... substr(string,start, length) needs indexes
+    my $seq = substr($fasta,$starter-1,500);  #start-1 becase $start and $end are positions in genome starting at 1,2,3.... substr(string,start, length) needs indexes
     my $ta="TA";
     my @c = $seq =~ /$ta/g;
     my $TAsites = scalar @c;
     push(@win,$TAsites);
-    my $countAvg=$win[4]/$TAsites;
+    my $countAvg=sprintf("$round",$win[4]/$TAsites);
     #print "\tCountAVG=$countAvg\n";
     push (@win,$countAvg);
     my $pval=pvalue($countAvg,$TAsites);
     push (@win,$pval);
     push (@newWindows,\@win);
-    foreach (@win){
-        print $_;
-        print "\t";
-    }
-    print "\n";
+    #foreach (@win){
+    #print $_;
+    #print "\t";
+    #}
+    #print "\n";
     $printNum++;
     }
 
@@ -472,7 +484,7 @@ for (my $i=0;$i<scalar @allWindows;$i++){
     my $csvBIG = Text::CSV->new({ binary => 1, auto_diag => 1, eol => "\n"}) or die "Cannot use CSV: " . Text::CSV->error_diag();  
     # open in append mode
     
-	open (my $FH8, ">$outdir/essentialWindows.csv");
+	open (my $FH8, ">$outdir/slidingWindows.csv");
 	
     $csvBIG->print($FH8, [ "start", "end","fitness","mutant_count","insertions","TA_sites","ratio","p-value"]); #header
     foreach my $winLine(@newWindows){
@@ -481,8 +493,9 @@ for (my $i=0;$i<scalar @allWindows;$i++){
     close $FH8;
     print "End csv ouput file creation: ",get_time(),"\n\n";
 
+#printwig();
 my $in = Bio::SeqIO->new(-file=>$ref_genome);
-    my $refseq = $in->next_seq;
+   my $refseq = $in->next_seq;
     my $refname = $refseq->id;
 
 #MAKE essentials WIG FILE---->later make BW--->IGV
@@ -509,7 +522,7 @@ my $in = Bio::SeqIO->new(-file=>$ref_genome);
     print "End wig file creation: ",get_time(),"\n\n";
     print "If this wig file needs to be converted to a Big Wig, then use USCS program wigToBigWig in terminal: \n \t./wigToBigWig gview/12G.wig organism.txt BigWig/output.bw \n\n";
 }
-#printwig();
+
 
 #IF GOING TO MAKE A TEXT FILE FOR BED CONVERSION TO BIGBED, NEED CHROM # IN COLUMN 0
 my @ecummulative;
@@ -609,7 +622,8 @@ if ($txtg or $txt){
 #MAKING A REGULAR TEXT FILE fields: [chrom,start,end,fitness,count]
 
     print "Start text file creation time: ",get_time(),"\n";
-    open my $TXT, '>', "$outdir/slidingWindow.txt" or die $!;
+    open my $TXT, '>', "$outdir/fitWindows.txt" or die $!;
+    print $TXT ("start","end","W","mutant_count","insertion_count\n");
     print $TXT (join("\t",@$_),"\n") for @allWindows;
     close $TXT;
     print "End text file creation: ",get_time(),"\n\n";
