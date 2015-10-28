@@ -90,7 +90,8 @@ close AL;
 open (CSV,'>', "align_withCoords.txt");
 foreach (sort keys %out){
     my @s=@{$out{$_}};
-    print CSV join( ',', @s )
+    print CSV join( ',', @s );
+    print CSV "\n";
 }
 
 close CSV;
