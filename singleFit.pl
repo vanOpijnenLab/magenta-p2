@@ -78,7 +78,6 @@ if ($indir){
 else{
     @files=@ARGV;
 }
-my $num=(scalar @files);
 
 my $num=scalar @files;
 print "\nNumber of files in csv: ", $num,"\n";
@@ -91,10 +90,12 @@ for (my $i=0; $i<$num; $i++){   #Read files from ARGV---loops once for each file
     print "File #",$i+1,"\t",$file,"\n";
     my $dummy=<DATA>;
     while (my $line = <DATA>) {
-        		my @fields=split(",",$line);
+        chomp $line;
+        my @fields=split(",",$line);
         my $w = $fields[12];
         if (!$w or $w eq"\n"){
-            next;} # For blanks
+            next;
+        } # For blanks
         else{
             my $c1 = $fields[2];
             my $c2 = $fields[3];
@@ -104,7 +105,7 @@ for (my $i=0; $i<$num; $i++){   #Read files from ARGV---loops once for each file
                 
             } # Skip cutoff genes.
             else {  #This is a good value and should be added to the hash
-            	my $pos=$fields[0];
+            	my $pos=int($fields[0]);
             	$w=sprintf("%.2f",$w);
             	if(!exists $select{$pos}){
             	#print $pos;
