@@ -145,6 +145,7 @@ open TXT,'>', "allLanesFitness.txt";
     #print TXT "Start text file creation time: ",get_time(),"\n";
 print TXT "start\tend\tcontrol\tL1\tL3\tL4\tL5\tL6\n";
 foreach my $entry (sort {$a<=>$b}  keys %select) {
+    my $end=$entry+1;
     print TXT $entry,"\t",$entry+1,"\t";
     my @entryFits=@{$select{$entry}};
     foreach (@entryFits){
