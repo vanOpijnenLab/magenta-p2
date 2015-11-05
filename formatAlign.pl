@@ -1,5 +1,6 @@
 #!/usr/bin/perl -w
 
+#perl ../Blueberries/formatAlign.pl --coord1 tigr4_genes.txt --coord2 19F_genes.txt --m ../3-strainAlignment/TIGR4vs.Taiwan19FpcKE.txt --a tigr4v19F_SDDM.txt
 
 use strict;
 use Getopt::Long;
