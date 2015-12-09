@@ -90,7 +90,7 @@ if ($h){
 }
 if (!$round){$round='%.3f';}
 if (!$outdir){
-	$outdir="C-151025";
+	$outdir="E-151209";
 }
 	mkpath($outdir);
 
@@ -142,6 +142,10 @@ else{
     @files=@ARGV;
 }
 my $num=(scalar @files);
+
+my $datestring = localtime();
+print "Local date and time $datestring\n";
+
 print "\n---------Importing files--------\n";
 print "\tStart input array ",get_time(),"\n";
 print "\tNumber of csv files: ", $num,"\n";
@@ -302,7 +306,7 @@ print "\n---------Assessing essentiality of genome region in each window--------
     my $offset=0;
     my $genPos = index($fasta,'TA',$offset);
 
-    while (($genPos != -1) and ($pos!=scalar @insertPos)) {
+while (($genPos != -1) and ($pos!=scalar @insertPos)) { #as long as the TA site is foun
         my $res=0;
         if ($genPos>$insertPos[$pos]){
             push @unmatched,$insertPos[$pos];
@@ -378,11 +382,29 @@ my $FILE3 = "$outdir/nullDist.txt";
 unless(open DIST, ">", $FILE3){
 	die "\nUnable to create $FILE3:\n$!";
 }
-printf DIST "Sites\tSize(n)\tMin\tMax\tMean\tstdev\tvar\n";
+printf DIST "Sites\tSize(n)\tMin\tMax\tMean\tstdev\tvar\tMinPval\n";
 
 #Loop once for each distribution in the library 
 #(i.e. distribution of 10,000 sites each with 35 TA sites, then a distribution of 10,000 sites each with 36 TA sites, etc)
+
+sub pvalue{
     
+    #takes in window count average (countAvg) and number of TAsites and makes a null distribution to calculate the pvalue, which it returns
+    my $mean=shift@_;
+    my $TAsites=shift@_;
+    my $N=10000;
+    my @specDist=@{$distLib[$TAsites-1]};
+    my $rank= binsearch_pos { $a cmp $b } $mean,@specDist;
+    my $i=$rank;
+    while ($i<scalar(@specDist)-1 and $specDist[$i+1]==$specDist[$rank]){
+        $i++;
+    }
+    $rank=$i;
+    my $pval=$rank/$N; #calculate pval as rank/N
+    return $pval;
+    
+}
+
 for (my $sitez=1; $sitez<=$tan;$sitez++){ 
     #print "In the first for loop to make a null distribution\n";
     my @unsorted;
@@ -404,26 +426,15 @@ for (my $sitez=1; $sitez<=$tan;$sitez++){
     my $min=sprintf("$round",$nullDist[0]);
     my $max=sprintf("$round",$nullDist[scalar @nullDist-1]);
     my $setScalar=scalar @nullDist;
-    printf DIST "$sitez\t$N\t$min\t$max\t$nullMean\t$standev\t$variance\n";
     push (@distLib,\@nullDist);
-    
+    my $minp=pvalue(0,$sitez);
+    printf DIST "$sitez\t$N\t$min\t$max\t$nullMean\t$standev\t$variance\t$minp\n";
 }
 close DIST;
 
 #SUBROUTINE TO CALCULATE THE P-VALUE OF THE WINDOW INSERTIONS AGAINST THE NULL DISTRIBUTION
 
-sub pvalue{
-	
- #takes in window count average (countAvg) and number of TAsites and makes a null distribution to calculate the pvalue, which it returns
-	my $countAvg=shift@_;
-	my $TAsites=shift@_;
-	my $N=10000;
-	my $rank= binsearch_pos { $a cmp $b } $countAvg, @{$distLib[$TAsites+1]};
-	my $pval=$rank/$N; #calculate pval as rank/N
-	return $pval;
-	
-}
-    
+
     
     
     #------------------------------------------------------------------------------------------------------------------------------------------------------
