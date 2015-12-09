@@ -1,19 +1,16 @@
-
-
-
 getTracks<-function(fromCoord,toCoord,x,y){
   #Load libraries
   library(seqinr)
   library(Biostrings)
   library(Gviz)
   
-  genomeFile="NC_003028.fa"
-  geneFile="tigr4_genes.txt"
-  singleFitFile="singleFit_tigr4_SDDM.txt"
+  #genomeFile="NC_003028.fa"
+  #geneFile="tigr4_genes.txt"
+  #singleFitFile="singleFit_tigr4_SDDM.txt"
   
-  #genomeFile="NC_012469.fa"
-  #geneFile="19F_genes.txt"
-  #singleFitFile="singleFit_19F_SDDM.txt"
+  genomeFile="NC_012469.fa"
+  geneFile="19F_genes.txt"
+  singleFitFile="singleFit_19F_SDDM.txt"
   
   
   #so Gviz doesn't look for NC_003028 in the UCSC site
@@ -79,7 +76,7 @@ getTracks<-function(fromCoord,toCoord,x,y){
   if (missing(y))y=50
 
   #plotTracks(list(gTrack,sTrack,anTrack,ht1),chromosome="genome",background.title="darkred",fontsize=17,from=fromCoord-x,to=toCoord+y,main="19F from Galaxy")
-  plotTracks(list(gTrack,sTrack,anTrack,insertData),chromosome="genome",background.title="darkred",fontsize=17,from=fromCoord-x,to=toCoord+y,main="19F from Galaxy")
+  plotTracks(list(gTrack,sTrack,anTrack,fitTrack),chromosome="genome",background.title="darkred",fontsize=17,from=fromCoord-x,to=toCoord+y)
   
   confirm=paste0("Tracks plotted for genomic coordinates ",fromCoord," to ",toCoord," with a window (",fromCoord-x,",",toCoord+y,")")
   return(confirm)
