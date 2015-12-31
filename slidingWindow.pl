@@ -11,6 +11,8 @@
 
 #perl ../Blueberries/slidingWindow.pl --size 500 --fasta tigr4_genome.fasta --indir 2394_PennG/ --log --ref NC_003028b2.gbk
 
+#cpanm Getopt::Long Data::Random List::Util File::Path File::Basename
+#cpanm List::BinarySearch List::BinarySearch::XS List::MoreUtils 
 
 
 use strict;
@@ -94,7 +96,7 @@ if ($h){
 }
 if (!$round){$round='%.3f';}
 if (!$outdir){
-	$outdir="E-151209";
+	$outdir="F-151228";
 }
 	mkpath($outdir);
 
@@ -247,9 +249,11 @@ sub OneWindow{
                 #print @Wwindow, "\n";
                 return (\@window);
             }
-            else{
-                return -1;
-            }  #Because count=0 (i.e. there were no insertion mutants in that window)      
+ 
+            else{ #Even if there were no insertions, still want window in file for consistent start/end
+                my @window=($Wstart,$Wend,0,0,0);
+                return (\@window);
+            }  	#Because count=0 (i.e. there were no insertion mutants in that window)
         }
     }
 }
@@ -267,13 +271,15 @@ my @allWindows=(); #will be a 2D array containing all window info to be written 
 
 while ($end<=$last-$size){  #100,000bp-->9,950 windows--> only 8500 windows in csv because 0
     my($window)=OneWindow($start,$end);
-    if ($window!=-1){
+    #if ($window!=-1){
         push (@allWindows,$window);
-    }
+    #}
     $start=$start+$step;
     $end=$end+$step;
 }
 print "End calculation: ",get_time(),"\n";
+
+
 
 my $avgInsert=$totalInsert/$totalWindows;
 print "Average number of insertions for $size base pair windows: $avgInsert\n";
