@@ -10,6 +10,8 @@
 use strict;
 use Getopt::Long;
 use warnings;
+use Text::CSV;
+no warnings 'recursion';
 
 #USAGE from /8-essFilters
 #perl ../Blueberries/test.pl --in slidingWindowF.csv
@@ -17,9 +19,10 @@ use warnings;
 #AVAILABLE OPTIONS. WILL PRINT UPON ERROR
 
 #ASSIGN INPUTS TO VARIABLES
-our ($infile,$h,$size, $bracket,$step,$defEss);
+our ($infile,$h,$size, $bracket,$step,$defEss,$out);
 GetOptions(
 'in:s' => \$infile,
+'out:s' =>\$out,
 'usage' => \$h,
 'b'=>\$bracket,
 'size'=>\$size,
@@ -30,13 +33,20 @@ GetOptions(
 if (!$size) { $size=500 };   #set the default sliding window size to 500
 if (!$step) {$step=10};
 if (!$bracket) { $bracket=2000 };
-if (!$defEss) {$defEss=.05} #define essentiality as meeting .05 pval cutoff
+if (!$defEss) {$defEss=.05}; #define essentiality as meeting .05 pval cutoff
+if (!$out) {$out="out.csv"};
 #GET DATA OUT OF FILE AND INTO 2D ARRAY
 my @outArray;
 open(DATA, '<', $infile) or die "Could not open '$infile' \n";
-my $dummy=<DATA>;
+
+my $line=<DATA>;
+#print "This is the line: ",$line,"stoooooop";
+chomp($line);
+my @header=split(",",$line);
+push (@header,'csTest');
+
 while (my $entry = <DATA>) {
-	chomp $entry;
+	chomp ($entry);
 	my @fields=split(",",$entry);
 	push (@outArray,\@fields); #should be ref array
 }
@@ -46,55 +56,84 @@ close DATA;
 #Better way to do it in case file is not from sliding windows: rec. until 2000 bef and aft
 
 #Forward check function (recursively go through 2000 bp ahead to check if is "Essential")
-function backRes($outArray,$roiIndex,$backStop){
+
+
+
 	#dereference @outarray
 	#roiIndex is going to be the index of the roi in @outArray
 	#Need to go back ($bracket/$size)-1 windows/indices to cover bracket
 	#OR Keep going back until reach forwardStop
 	#Default status: assume  outside region is essential
 	#If outside regions not ess, then not coldspot so stop looking and return status=1
-	my $status=0;
-	function isEssentialBack($outArray,$currentIndex, $status){
-	    my @outArray=@{$outArray};
-		my @currentRegion=@{$outArray[$currentIndex]};
-		my $regionStart=$currentRegion[0];
-		my $regionEss=$currentRegion[7]; #p-value for essentiality
-		if ($regionStart<$backStop or $regionStart<=1){
-			return $status;
-			#Problem: for first window where roiStart=1, will return status=0
-		}
 
-		if ($regionEss>$defEss){
-			$status=1; #because not cold spot----there is a non essential region
-			return $status;
+
+sub isEssentialBack{
+	my ($wholeArray,$currentIndex,$status,$stop)=@_;
+	if ($currentIndex==0){
+		return $status;
 		}
-		isEssentialBack(\@outArray,$currentIndex-1,$status);
+	my @outArray=@{$wholeArray};
+	my @currentRegion=@{$outArray[$currentIndex]};
+	my $regionStart=$currentRegion[0];
+	my $regionEss=$currentRegion[7]; #p-value for essentiality
+	if ($regionStart<$stop){
+		return $status; #Problem: for first window where roiStart=2, will return status=1
 	}
-	my $resultBack=isEssentialBack(\@outArray,$roiIndex,$status);
-	return $resultBack;
+	elsif ($regionEss>$defEss){return 2}
+	else{isEssentialBack(\@outArray,$currentIndex-1,$status,$stop)}
 }
 
-	
+sub isEssentialForward{
+	my ($wholeArray,$currentIndex,$status,$stop)=@_;
+	my @outArray=@{$wholeArray};
+	my $last=scalar @outArray-1;
+	if ($currentIndex==$last){return $status}
+	my @currentRegion=@{$outArray[$currentIndex]};
+	my $regionStart=$currentRegion[0];
+	my $regionEss=$currentRegion[7]; #p-value for essentiality
+	if ($regionEnd>$stop){
+		return $status; #Problem: for first window where roiStart=2, will return status=1
+	}
+	if ($regionEss>$defEss){   #Does this ever execute? Was error that wasn't caught
+		return 2;
+	}
+	else{
+		isEssentialForward(\@outArray,$currentIndex+1,$status,$stop);
+	}
+}
+
+my @finalOutput;
 my $lastLine=scalar @outArray;
-for (my $i=0;$i<$lastLine;$i++){
-	my @roi=$outArray[$i];
-	print "\n Start\tpvalue\tbackCold\n";
-	
-	#only check windows that are "essential" i.e. meet $defEss
+
+for (my $roiIndex=0;$roiIndex<$lastLine;$roiIndex++){
+	my @roi=@{$outArray[$roiIndex]};
+	my $backResult=0; #Default no test, then backResult=0
+	my $forwardResult=0;
+	#only check windows that are "essential" i.e. satisfy $defEss
 	if ($roi[7]<$defEss){
-	
 		my $backStop=$roi[0]-2000;
-    	my $backRes=backRec(\@outArray,$i,$backStop);
-    	print $roi[0],"\t",$roi[7],"\t",$backRes,"\n";
-		my $forwardStop=$roi[0]+2000+$size;
-		#my $forwardRes=forwardRec(\@outArray,$i,$forwardStop);
-		
+		my $forwardStop=$roi[1]+2000;
+    	$backResult=isEssentialBack(\@outArray,$roiIndex,1,$backStop);
+    	$forwardResult=isEssentialForward(\@outArray,$roiIndex,1,$forwardStop);
 	}
-	
+	push (@roi,$backResult);
+	push (@finalOutput,\@roi);
+}
+
+my $csv = Text::CSV->new({ binary => 1, auto_diag => 1, eol => "\n"}) or die "Cannot use CSV: " . Text::CSV->error_diag(); 
+open (my $OUT, ">$out"); 
+foreach (@header){
+	print $_,"\t";
+	}
+	print "\n";
+$csv->print($OUT, \@header); #header
+
+
+foreach (@finalOutput){
+	$csv->print ($OUT, $_);
 	
 }
-		
-	
+close $OUT;
 
 =begin comment
 
