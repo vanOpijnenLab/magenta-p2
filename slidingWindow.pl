@@ -3,8 +3,8 @@
 #Margaret Antonio 15.12.10
 
 #15.12.10: Things To Do for ESSENTIALS:
-    #1) If region is essential, then fitness of single insertion doesn't matter. Instead look at 2000 bp before and after to check if it is a cold spot. If many insertions before and after essential region, then it is a TRUE essential region.
-    #2) Should output everything including regions that don't have "enough" TA sites
+    #1) If region is essential, then fitness of single insertion doesn't matter. Instead look at 2000 bp before and after to check if it is a cold spot. If many insertions before and after essential region, then it is a TRUE essential region. DONE
+    #2) Should output everything including regions that don't have "enough" TA sites DONE
 
 #SLIDING WINDOW: a culmination of fitness calculation, essentiality determination,
     #and TA site and insertion statistics for automatically generated sliding widnow throughout genome
@@ -75,7 +75,7 @@ GetOptions(
 'random:s' =>\$random,
 'round:i' =>\$round,
 'fasta:s' => \$fasta,
-'outdir' =>\$outdir,
+'outdir:s' =>\$outdir,
 'log' => \$log,
 'usage' => \$h,
 'tan'=>\$tan,
@@ -602,7 +602,7 @@ if ($txt){
 	my $fcsv="fitWindows.csv";
     print "Start csv ouput file creation: ",get_time(),"\n";
     my $fcsvBIG = Text::CSV->new({ binary => 1, auto_diag => 1, eol => "\n"}) or die "Cannot use CSV: " . Text::CSV->error_diag();  # open in append mode
-    open my $file, ">", "$outdir$/fcsv" or die "Failed to open file";
+    open my $file, ">", "$outdir/$fcsv" or die "Failed to open file";
     $fcsvBIG->print($file, [ "start", "end","fitness","mutant_count" ]); #header
     foreach my $winLine(@allWindows){
         $fcsvBIG->print($file,$winLine);
