@@ -61,7 +61,7 @@ sub print_usage() {
 
 
 #ASSIGN INPUTS TO VARIABLES
-our ($round,$random,$txt,$txtg,$cutoff,$wig,$infile, $csv, $step, $h, $outdir,$size,$fasta, $log, $ref_genome,$tan,$indir);
+our ($round,$random,$txt,$txtg,$cutoff,$wig,$infile, $csv, $step, $h, $outdir,$size,$fasta, $log, $ref_genome,$tan,$indir,$inc);
 GetOptions(
 'wig:s' => \$wig,
 'ref:s' => \$ref_genome,
@@ -80,6 +80,7 @@ GetOptions(
 'usage' => \$h,
 'tan'=>\$tan,
 'indir:s'=>\$indir,
+'inc:i'=>\$inc,
 );
 
 sub get_time() {
@@ -95,10 +96,9 @@ if ($h){
 	if ($txtg){print "Text file for grouped windows: $txtg\n";}
 }
 if (!$round){$round='%.3f';}
-if (!$outdir){
-	$outdir="F-151228";
-}
-	mkpath($outdir);
+if (!$outdir){$outdir="F-151228";}
+if (!$inc){$inc=20;}
+mkpath($outdir);
 
 if ($log){
 	print "\nSending all output to log file\n";
@@ -268,12 +268,15 @@ my $windowNum=0;
 my @allWindows=(); #will be a 2D array containing all window info to be written into output file
 
 #WHILE LOOP TO CALL THE ONE WINDOW SUBROUTINE FOR CALCULATIONS===INCREMENTS START AND END VALUES OF THE WINDOW
-
-while ($end<=$last-$size){  #100,000bp-->9,950 windows--> only 8500 windows in csv because 0
+my ($start,$end)=(0,$minSize);
+while ($end<=$last-$minSize){  #100,000bp-->9,950 windows--> only 8500 windows in csv because 0
+    $pval=checkSig($start,$end);
+    if ($pval <= $cond){
+    	($start,$end,$pval)=expandForward($start,$end+$inc,$pval
     my($window)=OneWindow($start,$end);
-    #if ($window!=-1){
+    if ($window!=-1){
         push (@allWindows,$window);
-    #}
+    }
     $start=$start+$step;
     $end=$end+$step;
 }
@@ -285,8 +288,6 @@ my $avgInsert=$totalInsert/$totalWindows;
 print "Average number of insertions for $size base pair windows: $avgInsert\n";
 
 #ESSENTIALS: Counting the number of TA sites in the genome and whether an insertion occurred there or not
-
-print "\n---------Assessing essentiality of genome region in each window--------\n\n";
 
     my @sites;
 
@@ -360,7 +361,7 @@ while (($genPos != -1) and ($pos!=scalar @insertPos)) { #as long as the TA site 
  
 #print "\nTotal: $countInsert insertions in $countTA TA sites.\n";
 
-#-----------------------------------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
     
     #Now, have an array for each TA site and if an insertion occurred there. So per site @sites=(position, 0 or 1 for insertion).
     #Next step, create null distribution of 10,000 random sets with same number of TA sites as the window and then calculate p-value
@@ -383,6 +384,7 @@ sub stdev{
 	my $std = ($sqtotal / ($N-1)) ** 0.5;
 	return $std;  
 }
+
 #MAKE LIBRARY OF NULL DISTRIBUTIONS:
 print "Making a library of null distributions.\n For information on distribution library, see nullDist.txt\n";
 
@@ -442,13 +444,8 @@ for (my $sitez=1; $sitez<=$tan;$sitez++){
 }
 close DIST;
 
-#SUBROUTINE TO CALCULATE THE P-VALUE OF THE WINDOW INSERTIONS AGAINST THE NULL DISTRIBUTION
-
-
-    
-    
-    #------------------------------------------------------------------------------------------------------------------------------------------------------
-    
+#SUBROUTINE TO CALCULATE THE P-VALUE OF THE WINDOW INSERTIONS AGAINST THE NULL DISTRIBUTION    
+#---------------------------------------------------------------------------------------------------
     print "\n In case you were wondering....the size of genome is: ", length($fasta), " bp\n";
     
     #Now we have an array called @allTAsites which contains every TAsite position with a 0 next to it for "no insertion".
@@ -479,16 +476,10 @@ for (my $i=0;$i<scalar @allWindows;$i++){
     my $TAsites = scalar @c;
     push(@win,$TAsites);
     my $countAvg=sprintf("$round",$win[4]/$TAsites);
-    #print "\tCountAVG=$countAvg\n";
     push (@win,$countAvg);
     my $pval=pvalue($countAvg,$TAsites);
     push (@win,$pval);
     push (@newWindows,\@win);
-    #foreach (@win){
-    #print $_;
-    #print "\t";
-    #}
-    #print "\n";
     $printNum++;
     }
 
@@ -565,6 +556,10 @@ if ($txt){
 }
 
 #IF MAKING A TEXT FILE OF GROUPED CONSECUTIVE WINDOWS WITH SAME FITNESS
+
+
+#Edit: what is the 1000?....probably should be a variable
+
     my $etxtg="groupedWindows.txt";
     print "Start grouped txt file creation time: ",get_time(),"\n";
     open my $eTXTg, '>', "$outdir/$etxtg" or die $!;
