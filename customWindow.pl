@@ -82,6 +82,13 @@ GetOptions(
 'indir:s'=>\$indir,
 );
 
+sub cleaner{
+	my $line=$_[0];
+	chomp($line);
+	$line =~ s/\x0d{0,1}\x0a{0,1}\Z//s; 
+	return $line;
+	}
+	
 sub get_time() {
     my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime(time);
     return "$hour:$min:$sec";
@@ -169,7 +176,7 @@ for (my $i=0; $i<$num; $i++){   #Read files from ARGV
     open(DATA, '<', $file) or die "Could not open '$file' Make sure input .csv files are entered in the command line\n";
     my $dummy=<DATA>;
     while (my $entry = <DATA>) {
-    	chomp $entry;
+    	$entry=cleaner($entry);
 		my @line=split(",",$entry);
         my $w = $line[12];
         if (!$w){next;} # For blanks
@@ -189,19 +196,12 @@ for (my $i=0; $i<$num; $i++){   #Read files from ARGV
     }
     close DATA;
 }
-print "]";
+
 
 my @sorted = sort { $a->[0] <=> $b->[0] } @unsorted;
 
 @insertPos = sort { $a <=> $b } @insertPos;
 @insertPos= uniq @insertPos;
-
-#for (my $i=0;$i<30;$i++){
-#    foreach my $element ( @{ $sorted[$i] }){
-#        print $element,"\t";
-#    }
-#    print "\n";
-#}
 
 print "\n\tFinished input array ",get_time(),"\n";
 
@@ -272,7 +272,7 @@ print "Start calculation: ",get_time(),"\n";
 open (CUST, '<', $custom);
 my @allWindows;
 while(my $line=<CUST>){
-    chomp $line;
+    $line=cleaner($line);
     my @cwind=split("\t",$line);
     foreach(@cwind){
         print $_,"\t";
@@ -280,7 +280,7 @@ while(my $line=<CUST>){
     print "\n";
     my $start=$cwind[1];
     my $end=$cwind[2];
-    my($window)=OneWindow($cwind[0],$start,$end);
+    my $window=OneWindow($cwind[0],$start,$end);
     push (@allWindows,$window);
     
 
@@ -495,13 +495,13 @@ for (my $i=0;$i<scalar @allWindows;$i++){
     #How many TA sites are there from $genome[$start] to $genome[$end]?
     my $length=$ender-$starter;
     my $seq = substr($genome,$starter-1,$length);  #start-1 becase $start and $end are positions in genome starting at 1,2,3.... substr(string,start, length) needs indexes
-    print "Length= ",$length;
+    #print "Length= ",$length;
     my $ta="TA";
     my @c = $seq =~ /$ta/g;
-    print "This is scalar c: ", scalar @c,"\n";
+    #print "This is scalar c: ", scalar @c,"\n";
     my $TAsites = scalar @c;
     push(@win,$TAsites);
-    print "This is win[5]: ",$win[5],"\t";
+    #print "This is win[5]: ",$win[5],"\t";
     my $countAvg=sprintf("$round",($win[5]/$TAsites));
  
     push (@win,$countAvg);
@@ -582,27 +582,6 @@ if ($txt){
     close $TXT;
     print "End text file creation: ",get_time(),"\n\n";
 }
-
-
-
-
-#----------------OUTPUT REGULAR SLIDING INFORMATION WITHOUT ESSENTIALS CALCULATIONS (P-VALUES)----------------------
-
-
-#MAKE OUTPUT CSV FILE WITH FITNESS WINDOW CALCULATIONS
-	my $fcsv="fitWindows.csv";
-    print "Start csv ouput file creation: ",get_time(),"\n";
-    my $fcsvBIG = Text::CSV->new({ binary => 1, auto_diag => 1, eol => "\n"}) or die "Cannot use CSV: " . Text::CSV->error_diag();  # open in append mode
-    open my $file, ">", "$outdir$/fcsv" or die "Failed to open file";
-    $fcsvBIG->print($file, [ "start", "end","fitness","mutant_count" ]); #header
-    foreach my $winLine(@allWindows){
-        $fcsvBIG->print($file,$winLine);
-    }
-    close $file;
-    print "End csv ouput file creation: ",get_time(),"\n\n";
-
-
-
 
 
 
