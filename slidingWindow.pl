@@ -268,19 +268,17 @@ my $windowNum=0;
 my @allWindows=(); #will be a 2D array containing all window info to be written into output file
 
 #WHILE LOOP TO CALL THE ONE WINDOW SUBROUTINE FOR CALCULATIONS===INCREMENTS START AND END VALUES OF THE WINDOW
-my ($start,$end)=(0,$minSize);
-while ($end<=$last-$minSize){  #100,000bp-->9,950 windows--> only 8500 windows in csv because 0
-    $pval=checkSig($start,$end);
-    if ($pval <= $cond){
-    	($start,$end,$pval)=expandForward($start,$end+$inc,$pval
+while ($end<=$last-$size){  #100,000bp-->9,950 windows--> only 8500 windows in csv because 0
     my($window)=OneWindow($start,$end);
-    if ($window!=-1){
+    #if ($window!=-1){
         push (@allWindows,$window);
-    }
+    #}
     $start=$start+$step;
     $end=$end+$step;
 }
 print "End calculation: ",get_time(),"\n";
+
+
 
 
 
@@ -470,7 +468,7 @@ for (my $i=0;$i<scalar @allWindows;$i++){
     #print "num $printNum -->\tStart pos: $starter\tEnd pos: $ender\n";
     #How many TA sites are there from $genome[$start] to $genome[$end]?
 
-    my $seq = substr($fasta,$starter-1,500);  #start-1 becase $start and $end are positions in genome starting at 1,2,3.... substr(string,start, length) needs indexes
+    my $seq = substr($fasta,$starter-1,$size);  #start-1 becase $start and $end are positions in genome starting at 1,2,3.... substr(string,start, length) needs indexes
     my $ta="TA";
     my @c = $seq =~ /$ta/g;
     my $TAsites = scalar @c;
