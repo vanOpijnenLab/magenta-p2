@@ -437,26 +437,22 @@ sub extendBack{
 	}
 
 my $index=-1;
-my $firstMark=0;
-my $lastMark=0;
-my $totalInsert=0;
-my $totalWindows=0;
-my $count=0;
+my $fm=0;
+my $lm=0;
 
+#Fields[0]=index   Fields[1]=Position
+sub sigCheck{ #WILL RETURN A WINDOW
+my $count=0;    #keeps track of the number of insertions in a window
 my $start=shift @_;
 my $end=shift@_;
 my $avg=0;
 my $sum=0;
 my $lastPos=0;
 my $i;
-    
 
-#Fields[0]=index   Fields[1]=Position
-sub sigCheck{
-
-	#$i=$firstMarker
+#$i=$firstMarker
 	my ($start,$end,$indexMarker)=shift @_;
-	for ($i=$indexMarker;$i<$rowCount;$i++){
+	for (my $i=$indexMarker;$i<$rowCount;$i++){
         my @fields=@{$sorted[$i]};
         my $pos=$fields[1]; 
         my $index=$fields[0];
@@ -468,36 +464,26 @@ sub sigCheck{
         elsif ($pos<=$end) and ($pos>=$start){
             $count++; #For significance
             $fitSum+=$fit; #For importance
-
+            next;
+			}
         else{   
             #if finished with that window, then:
+       
             if ($count!=0){
-                my $avg=sprintf("%.2f",$fitSum/$count);
-                my $seq = substr($fasta,$starter-1,500);  #start-1 becase $start and $end are positions in genome starting at 1,2,3.... substr(string,start, length) needs indexes
-    			my $ta="TA";
-   			 	my @c = $seq =~ /$ta/g;
-   			 	my $TAsites = scalar @c;
-   			  	my $ratio=$count/$TAsites;
-   			  	my $pval=pvalue($ratio,$TAsites);
-                my @window=($start,$end,$avg,$count,$TAsites,$ratio,$pval);
-    			push(@win,$TAsites);
-				push (@win,$countAvg);
-    my $pval=pvalue($countAvg,$TAsites);
-    push (@win,$pval);
-    push (@newWindows,\@win);
-    $printNum++;
-    }
-                return (\@window);
-            }
-            
-            else{ #Even if there were no insertions, still want window in file for consistent start/end
-                my @window=($Wstart,$Wend,0,0,0);
-                return (\@window);
-            }  	#Because count=0 (i.e. there were no insertion mutants in that window)
+                my $avgFit=sprintf("%.2f",$fitSum/$count);
+                }
+            my $len=
+            my $seq = substr($fasta,$start-1,$end-$start);  #start-1 becase $start and $end are positions in genome starting at 1,2,3.... substr(string,start, length) needs indexes
+    		my $ta="TA";
+   			my @c = $seq =~ /$ta/g;
+   			my $TAsites = scalar @c;
+   			my $ratio=$count/$TAsites;
+   			my $pval=pvalue($ratio,$TAsites);
+            my @window=($start,$end,$fm,$lm,$count,$TAsites,$ratio,$pval);
+    		return \@window;
+    		}
         }
-    }
-}
-
+	}
 
 		
 	
@@ -518,10 +504,11 @@ my @allWindows=(); #will be a 2D array containing all window info to be written 
 
 
 #WHILE LOOP TO CALL THE ONE WINDOW SUBROUTINE FOR CALCULATIONS===INCREMENTS START AND END VALUES OF THE WINDOW
+#fm=0; lm=0;
 my ($start,$end,$pval)=(1,$minSize+1,0);
 my $genLen=length($fasta);
 while ($end <= $genLen){  #100,000bp-->9,950 windows--> only 8500 windows in csv because 0
-    my $pval=sigCheck($start,$end);
+    my $sCreturn=sigCheck($start,$end,$fm);
     #if min size window is significant, expand to see if surrounding regions can be incl.
     if ($pval<$cond){  
     	($start,$end,$pval)=checkFront($start,$end+$inc,$pval);
