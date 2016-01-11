@@ -8,6 +8,18 @@ use strict;
 use Getopt::Long;
 use warnings;
 use Text::CSV;
+use List::Util qw(sum);
+
+use Bio::SeqIO;
+use Data::Random qw(:all);
+use List::Util qw(sum);
+use List::BinarySearch qw( :all );
+use List::BinarySearch::XS;
+use List::MoreUtils qw(uniq);
+use File::Path;
+use File::Basename;
+use feature qw/say/;
+use autodie;
 
 
 #USAGE from /8-essFilters
@@ -15,8 +27,12 @@ use Text::CSV;
 
 #AVAILABLE OPTIONS. WILL PRINT UPON ERROR
 
+
+# 0:start,1:end,2:fitness,3:mutant_count,4:insertions,5:TA_sites,6:ratio,7:p-value
+print "Sort by options:\n0:Start coord.\n1:End coord\n2:Fitness\n3: mutant count\n4: insertions\n5:TA_sites\n6:ratio\n7: p-value\n8: deviation from mean fitness\n";
+
 #ASSIGN INPUTS TO VARIABLES
-our ($in,$h,$size, $bracket,$step,$defEss,$out);
+our ($in,$h,$size, $bracket,$step,$defEss,$out,$sortby,$round,$super);
 GetOptions(
 'i:s' => \$in,
 'o:s' =>\$out,
@@ -25,11 +41,16 @@ GetOptions(
 'size'=>\$size,
 'step'=>\$step,
 'ess'=>\$defEss,
+'s:i' => \$sortby,
+'r:i'=> \$round,
+'super'=> \$super,
 );
 
-if (!$size) { $size=500 };   #set the default sliding window size to 500
-if (!$step) {$step=10};
-if (!$out) {$out="orderedGroup.csv"};
+if (!$size) {$size=500}   #set the default sliding window size to 500
+if (!$step) {$step=10}
+if (!$out) {$out="orderedGroup.csv"}
+if (!$round){$round='%.3f'}
+
 
 
 sub get_time() {
@@ -39,8 +60,10 @@ sub get_time() {
 
 #GET DATA OUT OF FILE AND INTO 2D ARRAY
 
-
-my @newWindows;
+sub mean {
+	return sum(@_)/@_;
+}
+my @windows;
 
 sub cleaner{
 	my $line=$_[0];
@@ -55,55 +78,95 @@ my $line=<DATA>;
 #print "This is the line: ",$line,"stoooooop";
 $line=cleaner($line); #gets rid of carriage returns (^M)
 my @header=split(',',$line);
-push (@header,'csTest');
+
 my $tick=0;
 while (my $entry = <DATA>) {
-	#$tick+=1;
-	#print $tick, "\t";
 	$entry=cleaner($entry);
-	#chomp($entry);
-	#$entry =~ s/\x0d{0,1}\x0a{0,1}\Z//s; 
 	my @fields=split(',',$entry);
-	push (@newWindows,\@fields); #should be ref array    
-	#freezes after line 214820
+	push (@windows,\@fields);     
 }
 close DATA;
 
 #my @finalOutput;
 #my $lastLine=scalar @outArray;
 
-my $div=0; #number of windows added to cumm that will be used for avg calc
+my $count=0; #number of windows added to cumm that will be used for avg calc
 my $sumFit=0;
 my $sumRatio=0;
 
 print "Start grouped txt file creation time: ",get_time(),"\n";
 
+
+
+#What's the mean fitness value for all of the windows?
+my @allFits = map $_->[2], @windows;
+my $meanFit=mean(@allFits); #not sure what module this needs
+
+#Add the absolute deviation from mean fitness to each window array (use this to sort)
+my @expWindows=();
+foreach (@windows){
+	my @entry=@{$_};	
+	my $absdev=sprintf('%.1f',abs($entry[2]-$meanFit));
+	push @entry,$absdev;
+	push @expWindows,\@entry;	
+	} 
+	
+#Now sort @expWindows by the abs. dev. of fitness (index 8). Reuse old @windows variable
+@windows= sort {$a->[$sortby]<=>$b->[$sortby] || 
+	$a->[0]<=>$b->[0] } @expWindows;
+
 open my $gOut, '>', "$out" or die $!;
 
-my $lastLine=scalar @newWindows;
-my @cumm=@{$newWindows[0]};
+#column fields from sliding window input: 
+# 0:start,1:end,2:fitness,3:mutant_count,4:insertions,5:TA_sites,6:ratio,7:p-value
+
+#print the header
+push(@header, "abs(diff_mean)");
+my $string = join(",", @header);
+print $gOut "$string\n"; 
+
+#Seed entry to begin grouping
+my $lastLine=scalar @windows;
+my @cumu=@{$windows[0]};
+my ($cstart,$cend,$cfit,$cmcount,$cins,$cta,$cratio,$cpval,$cdev)=@cumu;
 
 for (my $i=1;$i<$lastLine;$i++){
-	my @field=@{$newWindows[$i]};
-	$sumFit=$cumm[3];
-	$div=1;
-	$sumRatio=$cumm[7];
+	my @field=@{$windows[$i]};
+	my ($fstart,$fend,$ffit,$fmcount,$fins,$fta,$fratio,$fpval,$fdev)=@field;
+	if ($super){
+		$ffit=sprintf('%.1f',$ffit);
+		}
+	#$sumFit=$cumu[2];
+	#$count=$cumu[3];
+	#$sumRatio=$cumu[6];
 	
     #either this window needs to be added or need to start new cumm
-	if (($cumm[2]>=$field[1] and $cumm[2]<=$field[2]) or ($field[2]>=$cumm[1] and $field[2]<=$cumm[2])){ 
-	#Add window if overlapping windows
-		$cumm[2]=$field[2]; #change the end coordinate
-		$sumFit+=$field[3];
-		$div++;
-		$sumRatio+=$field[7];
+	
+	#Add field window (@field) if overlaps with cumulative window (@cumu)
+	if (($cend>=$fstart and $cstart<=$fstart) or ($cend>=$fend and $cstart<=$fend)){ 
+		#Keep cstart as it is
+		$cend=$fend; #change the end coordinate
+		$sumFit+=($ffit*$fins);
+		$cins+=$fins;
+		$cmcount+=$fmcount;
 	}
 	else{ #need to output this cumm region with average calcs
-		$cumm[3]=$sumFit/$div;
-		$cumm[7]=$sumRatio/$div;
-		shift @cumm;
-		print $gOut ($_,",") for @cumm;
+		$cratio=sprintf("$round",($cins/$cta));
+		if ($cins !=0){
+			$cfit=sprintf('%.1f',($sumFit/$cins)); #not accurate
+			}
+		else{
+			$cfit=0;
+			}
+		@cumu=($cstart,$cend,$cfit,$cmcount,$cins,$cta,$cratio,$cpval,$cdev);
+		print $gOut ($_,",") for @cumu;
 		print $gOut ("\n");
-		@cumm=@field;
+		#Set up current entry as new cumulative
+		@cumu=@field;
+	    ($cstart,$cend,$cfit,$cmcount,$cins,$cta,$cratio,$cpval,$cdev)=@cumu;
+	    $sumFit=0;
+	    $sumRatio=0;
+		
 	}
 	
 }
