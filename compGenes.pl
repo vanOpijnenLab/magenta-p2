@@ -11,13 +11,13 @@ use File::Path;
 use File::Basename;
 
 #ASSIGN INPUTS TO VARIABLES
-our ($indir,$h,$out,$sortby,$round,$labels);
+our ($indir,$h,$out,$sortby,$round,$l);
 GetOptions(
 'indir:s' => \$indir,
 'o:s' =>\$out,
 's:i' => \$sortby,
 'r:i'=> \$round,
-'l:s'=> \$labels,
+'l:s'=> \$l,
 );
 
 if (!$out) {$out="compGenes.csv"}
@@ -51,23 +51,23 @@ my $num=(scalar @files);
 
 
 my @header;
-my @sample;
-push (@header,"gene");
-if ($labels){
-    @sample=split(',',$labels);
+push (@header,"id");
+my @labels;
+if ($l){
+    @labels=split(',',$l);
 }
 else{
     #get rid of .csv part in file names and use as labels
     foreach (@files){
-        my @temp=split('\\.',$_);
-        my $colName=$temp[0];
-        push (@sample,$colName);
-    }
+       my @temp=split('\\.',$_);
+       my $colName=$temp[0];
+       push (@labels,$colName);
+   }
 }
-push (@header,@sample);
-push (@header,"abs(diffMean)");
+#push (@header,@sample);
 
 
+my $sortkey;
 my %all;
 for (my $i=0; $i<$num; $i++){   #Read files from ARGV
     print "File #",$i+1,"\t";
@@ -76,30 +76,45 @@ for (my $i=0; $i<$num; $i++){   #Read files from ARGV
     print $file,"\n";
     
     open(DATA, '<', $file) or die "Could not open '$file' Make sure input .csv files are entered in the command line\n";
-    my $dummy=<DATA>; #the header in the file
+    
+    #extract the header
+    my $head=<DATA>; #the header in the file
+    my @cols=split(',',$head);
+     @cols=@cols[1,2,3,4,5,6]; #get rid of gene name
+    for (my $j=0;$j<scalar @cols;$j++){
+        $cols[$j]=$cols[$j].'-'.$labels[$i];
+    }
+    push (@header,@cols);
     #my %hash;
     while (my $entry = <DATA>) {
         chomp $entry;
         my @line=split(",",$entry);
+        if (!$line[5]){
+            $line[5]="NA";
+        }
+        if (!$line[6]){
+            $line[6]=0;
+        }
+        @line=@line[0,1,2,3,4,5,6];
         my $gene=$line[0];
         chomp($gene);
-        my $mean = sprintf("$round",$line[1]);
+        #my $mean = sprintf("$round",$line[1]);
+        shift @line; #pop off the "gene name"
         
         ############################## hash assignment
         if(!exists $all{$gene}){
-            my @means;
-            push (@means,$mean);
-            $all{$gene}=\@means;
+            my @info;
+            push (@info,@line);
+            $all{$gene}=\@info;
         }
         else{
-            my @means=@{$all{$gene}};
-            #for (my $j=scalar @means+1;$j<$i;$j++){
-            #    push (@means,"NA");
-            #}
-            push (@means,$mean);
-            my $diff=sprintf("$round",abs($means[0]-$means[1]));
-            push (@means,$diff);
-            $all{$gene}=\@means;
+            my @info=@{$all{$gene}};
+            push (@info,@line);
+            my $diff=sprintf("$round",($info[0]-$info[6]));
+            push (@info,$diff);
+            $all{$gene}=\@info;
+    
+          
         }
        
     }
@@ -112,24 +127,35 @@ for (my $i=0; $i<$num; $i++){   #Read files from ARGV
 
 #Set up the header (column names)
 
-
 my @unsorted;
 
-foreach my $entry (sort {$a cmp $b}  keys %all) {
-    my @means=@{$all{$entry}};
-    #print OUT $entry,",";      #if unhashed, must go after OPEN
-    #print OUT (join(",",@means),"\n");
-    my @temp=($entry);
-    push (@temp,@means);
+foreach my $entry (keys %all) {
+    my @info=@{$all{$entry}};
+    #print $entry,",";      #if unhashed, must go after OPEN
+    #print (join(",",@info),"\n");
+    my @temp;
+    push (@temp,$entry);
+    push (@temp,@info);
+    $sortkey=(scalar @temp)-1;
     push (@unsorted,\@temp);
 }
-my @sorted = sort { $b->[3] <=> $a->[3] } @unsorted;
+
+
+my @sorted = sort { $b->[$sortkey] <=> $a->[$sortkey] } @unsorted;
+
+#Finish up the header
+push (@header,"abs(diffMean)");
 
 open OUT, '>',"$out";
-print OUT (join(",",@header),"\n");
+print OUT (join(',',@header),"\n");
 foreach (@sorted){
-    print OUT (join(",",@{$_}),"\n");
-}
+    my @woo=@{$_};
+    #print scalar @woo,"\t";
+    print OUT join(',',@woo),"\n";
+    }
+
+    #print OUT (join(',',@foo),"\n");
+
 close OUT;
 
 
