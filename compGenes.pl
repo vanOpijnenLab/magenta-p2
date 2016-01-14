@@ -1,35 +1,37 @@
 #!/usr/bin/perl -w
 
-#Margaret Antonio 15.12.26
+#Margaret Antonio 16.01.13
 
-#DESCRIPTION: After s
+#DESCRIPTION: Takes two aggregate.pl outputs and compares them using mean difference, pval for each
+#gene. Can compare, for example, control vs antibiotic.
+
+#Improvements to be made: default output should b
+
+#USAGE: perl compGenes.pl <aggregateFile1.csv aggregateFile2.csv> OR -indir <indir/>
+
 use Data::Dumper;
 use strict;
 use Getopt::Long;
 use warnings;
 use File::Path;
 use File::Basename;
+use Statistics::Distributions;
 
 #ASSIGN INPUTS TO VARIABLES
-our ($indir,$h,$out,$sortby,$round,$l);
+our ($indir,$h,$out,$sortkey,$round,$l);
 GetOptions(
 'indir:s' => \$indir,
 'o:s' =>\$out,
-'s:i' => \$sortby,
+'s:i' => \$sortkey,
 'r:i'=> \$round,
 'l:s'=> \$l,
 );
-
-if (!$out) {$out="compGenes.csv"}
-if (!$round){$round='%.4f'}
-
-
 
 sub get_time() {
     my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime(time);
     return "$hour:$min:$sec";
 }
-
+i
 my @files;
 if ($indir){
     my $directory="$indir";
@@ -64,10 +66,14 @@ else{
        push (@labels,$colName);
    }
 }
+
+if (!$out) {$out="comp-".$labels[0].$labels[1].".csv"}
+if (!$round){$round='%.4f'}
+
+
+
 #push (@header,@sample);
 
-
-my $sortkey;
 my %all;
 for (my $i=0; $i<$num; $i++){   #Read files from ARGV
     print "File #",$i+1,"\t";
@@ -111,7 +117,25 @@ for (my $i=0; $i<$num; $i++){   #Read files from ARGV
             my @info=@{$all{$gene}};
             push (@info,@line);
             my $diff=sprintf("$round",($info[0]-$info[6]));
-            push (@info,$diff);
+            my $total1=$info[5];
+            my $total2=$info[11];
+            my $sd1=$info[2];
+            my $se1=$info[3];
+            my $sd2=$info[8];
+            my $se2=$info[9];
+            my $df=$total1+$total2-2;
+            my $tdist;
+            my $pval;
+            #print $gene, "\t",$total1,"\t",$total2,"\n";
+            if ($se1 eq "X" or $se2 eq "X" or $sd1 eq "X" or $sd2 eq "X" or $total1==0 or $total2==0 or $sd1==0 or $sd2==0){
+                ($tdist,$pval)=("NA","NA");
+            }
+            else{
+    
+                $tdist=sqrt((($diff)/(sqrt((($sd1**2)/$total1)+(($sd2**2)/$total2))))**2);
+                $pval=Statistics::Distributions::tprob($df,$tdist);
+            }
+            push (@info,$diff,$df,$tdist,$pval);
             $all{$gene}=\@info;
     
           
@@ -136,15 +160,17 @@ foreach my $entry (keys %all) {
     my @temp;
     push (@temp,$entry);
     push (@temp,@info);
-    $sortkey=(scalar @temp)-1;
     push (@unsorted,\@temp);
 }
 
-
+if (!$sortkey){
+    $sortkey=13; #for mean difference
+}
 my @sorted = sort { $b->[$sortkey] <=> $a->[$sortkey] } @unsorted;
 
 #Finish up the header
-push (@header,"abs(diffMean)");
+my $field="Mean".$labels[0].'-'.$labels[1];
+push (@header,$field,"DOF","TDIST","PVALUE");
 
 open OUT, '>',"$out";
 print OUT (join(',',@header),"\n");
