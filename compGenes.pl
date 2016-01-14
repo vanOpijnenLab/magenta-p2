@@ -13,6 +13,7 @@ use Data::Dumper;
 use strict;
 use Getopt::Long;
 use warnings;
+use diagnostics;
 use File::Path;
 use File::Basename;
 use Statistics::Distributions;
@@ -31,7 +32,7 @@ sub get_time() {
     my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime(time);
     return "$hour:$min:$sec";
 }
-i
+
 my @files;
 if ($indir){
     my $directory="$indir";
@@ -127,7 +128,7 @@ for (my $i=0; $i<$num; $i++){   #Read files from ARGV
             my $tdist;
             my $pval;
             #print $gene, "\t",$total1,"\t",$total2,"\n";
-            if ($se1 eq "X" or $se2 eq "X" or $sd1 eq "X" or $sd2 eq "X" or $total1==0 or $total2==0 or $sd1==0 or $sd2==0){
+            if ($se1 eq "X" or $se2 eq "X" or $sd1 eq "X" or $sd2 eq "X" or $total1==0 or $total2==0 or $sd1==0 or $sd2==0 or $df<=0){
                 ($tdist,$pval)=("NA","NA");
             }
             else{
