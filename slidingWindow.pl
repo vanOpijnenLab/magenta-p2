@@ -56,12 +56,13 @@ sub print_usage() {
     print "--txt\t Output all data [start,end,W,count] into a text of bed file.\n";
     print "--txtg\t If consecutive windows have the same value, then group them into one window. Ouput into txt file or bed file.\n";
     print "--ref\tThe name of the reference genome file, in GenBank format. Needed for wig and txt file creation\n";
+    print "--sort\tIndex of column to sort by\n";
 
 }
 
 
 #ASSIGN INPUTS TO VARIABLES
-our ($round,$random,$txt,$txtg,$cutoff,$wig,$infile, $csv, $step, $h, $outdir,$size,$fasta, $log, $ref_genome,$tan,$indir,$inc);
+our ($round,$random,$txt,$txtg,$cutoff,$wig,$infile, $csv, $step, $h, $outdir,$size,$fasta, $log, $ref_genome,$tan,$indir,$inc,$sortby);
 GetOptions(
 'wig:s' => \$wig,
 'ref:s' => \$ref_genome,
@@ -81,6 +82,7 @@ GetOptions(
 'tan'=>\$tan,
 'indir:s'=>\$indir,
 'inc:i'=>\$inc,
+'sort:i'=>\$sortby,
 );
 
 sub get_time() {
@@ -104,6 +106,9 @@ if ($log){
 	print "\nSending all output to log file\n";
 	# redirect STDOUT to log.txt
     open (STDOUT, ">>$outdir/log.txt");
+}
+if (!$sortby){
+    $sortby=8;
 }
 
 
@@ -278,14 +283,12 @@ while ($end<=$last-$size){  #100,000bp-->9,950 windows--> only 8500 windows in c
 }
 print "End calculation: ",get_time(),"\n";
 
-
-
-
-
 my $avgInsert=$totalInsert/$totalWindows;
 print "Average number of insertions for $size base pair windows: $avgInsert\n";
 
 #ESSENTIALS: Counting the number of TA sites in the genome and whether an insertion occurred there or not
+
+print "\n---------Assessing essentiality of genome region in each window--------\n\n";
 
     my @sites;
 
@@ -449,11 +452,6 @@ close DIST;
     #Now we have an array called @allTAsites which contains every TAsite position with a 0 next to it for "no insertion".
     #Now just need to replace 0 with 1 if there IS and insertion at that site
 
-    #FOR TESTING: to print subset of the genome
-        #my $sub=substr($genome,3780,10);
-        #print "\nFrom positions 3780 to 3790: \n  $sub  ";
-    
-    #Just counting number of TA sites in the window
     
     my @newWindows=();
     my $printNum=0;
@@ -486,6 +484,23 @@ for (my $i=0;$i<scalar @allWindows;$i++){
 
 #print "This is the TA count: $count\nTotal genome size is: $total\n\n";
 
+
+### For all windows, add a field that has the difference between that window's mean fitness and the
+#average mean fitness for all of the windows
+
+my @allFits = map $_->[2], @newWindows;
+my $meanFit=mean(@allFits);
+print "Average fitness for all windows: ",$meanFit,"\n";
+my @expWindows=();
+foreach (@newWindows){
+    my @entry=@{$_};
+    my $mean=$entry[2];
+    my $absdev=sprintf("$round",abs($mean-$meanFit));
+    push @entry,$absdev;        #now becomes index [8], column 7 after pvalue
+    push @expWindows,\@entry;
+}
+@newWindows= sort {$b->[$sortby]<=>$a->[$sortby]} @expWindows;
+
 #-------------------------------------------Essentials OUTPUTS------------------------------------------------------------
 
 #MAKE OUTPUT CSV FILE WITH ESSENTIAL WINDOW CALCULATIONS
@@ -496,7 +511,7 @@ for (my $i=0;$i<scalar @allWindows;$i++){
     
 	open (my $FH8, ">$outdir/slidingWindows.csv");
 	
-    $csvBIG->print($FH8, [ "start", "end","fitness","mutant_count","insertions","TA_sites","ratio","p-value"]); #header
+    $csvBIG->print($FH8, [ "start", "end","fitness","mutant_count","insertions","TA_sites","ratio","p-value","fitness-meanFit"]); #header
     foreach my $winLine(@newWindows){
         $csvBIG->print($FH8,$winLine);
     }
@@ -508,7 +523,7 @@ my $in = Bio::SeqIO->new(-file=>$ref_genome);
    my $refseq = $in->next_seq;
     my $refname = $refseq->id;
 
-#MAKE essentials WIG FILE---->later make BW--->IGV
+#MAKE essentials WIG FILE---->later make BW--->IGV   #####
  sub printwig{
     print "Start wig file creation: ",get_time(),"\n";
     my $in = Bio::SeqIO->new(-file=>$ref_genome);
@@ -526,7 +541,6 @@ my $in = Bio::SeqIO->new(-file=>$ref_genome);
         printf eWIG $position, " ",$wigFields[7],"\n";    #7 for pvalue, but 2 for fitness!!!!!!
         $position=$position+1;
         }
-        #print  WIG $wigFields[0]," ",$wigFields[2],"\n";
     }
     close eWIG;
     print "End wig file creation: ",get_time(),"\n\n";

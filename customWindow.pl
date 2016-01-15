@@ -11,6 +11,7 @@
         #results/L1_2394eVI_PennG.csv results/L3_2394eVI_PennG.csv results/L4_2394eVI_PennG.csv results/L5_2394eVI_PennG.csv results/L6_2394eVI_PennG.csv
         #--log --custom <file>
 
+#For custom file, accepts any csv file with start and end as first two columns.
 
 
 use strict;
@@ -60,7 +61,7 @@ sub print_usage() {
 
 
 #ASSIGN INPUTS TO VARIABLES
-our ($round,$random,$txt,$txtg,$cutoff,$wig,$infile, $csv, $step, $h, $outdir,$size,$genome, $log, $ref_genome,$tan,$custom,$indir);
+our ($round,$random,$txt,$txtg,$cutoff,$wig,$infile, $csv, $step, $h, $outdir,$size,$fasta, $log, $ref_genome,$tan,$custom,$indir,$label);
 GetOptions(
 'wig:s' => \$wig,
 'ref:s' => \$ref_genome,
@@ -73,13 +74,14 @@ GetOptions(
 'txt:s' => \$txt,
 'random:s' =>\$random,
 'round:i' =>\$round,
-'fasta:s' => \$genome,
+'fasta:s' => \$fasta,
 'outdir' =>\$outdir,
 'log' => \$log,
 'usage' => \$h,
 'tan'=>\$tan,
 'custom:s'=>\$custom,
 'indir:s'=>\$indir,
+'label'=>\$label,
 );
 
 sub cleaner{
@@ -93,25 +95,6 @@ sub get_time() {
     my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime(time);
     return "$hour:$min:$sec";
 }
-# Just to test out the script opening
-if ($h){
-	print print_usage(),"\n";
-	print "\n";
-	if ($csv){print "CSV output file: ", $csv,"\n";}
-	if ($txt){print "Text file for window data: $txt\n";}
-	if ($txtg){print "Text file for grouped windows: $txtg\n";}
-}
-if (!$round){$round='%.3f';}
-if (!$outdir){
-	$outdir="customWindow";
-}
-	mkpath($outdir);
-
-if ($log){
-	print "\nSending all output to log file\n";
-	# redirect STDOUT to log.txt
-    open (STDOUT, ">>$outdir/log.txt");
-}
 
 
 #CHECKING PARAMETERS: Check to make sure required option inputs are there and if not then assign default
@@ -119,10 +102,32 @@ if (!$size) { $size=500 };   #set the default sliding window size to 500
 if (!$step) { $step=10 };   #set the default step size to 10
 if (!$cutoff) {$cutoff=15};
 if (!$tan){$tan=100};
+if (!$round){$round='%.3f';}
+if (!$outdir){
+    $outdir="customWindow";
+}
+mkpath($outdir);
+if (!$custom){ print "Must give custom file"; die;}
 
 print "Window size: $size\n";
 print "Step value: $step\n";
 print "Cutoff: $cutoff\n";
+# Just to test out the script opening
+if ($h){
+    print print_usage(),"\n";
+    print "\n";
+}
+if ($csv){print "CSV output file: ", $csv,"\n";}
+if ($txt){print "Text file for window data: $txt\n";}
+if ($txtg){print "Text file for grouped windows: $txtg\n";}
+
+
+if ($log){
+    print "\nSending all output to log file\n";
+    # redirect STDOUT to log.txt
+    open (STDOUT, ">>$outdir/log.txt");
+}
+
 
 #if ((!$csv) and (!$txt) and (!$txtg) and (!$wig)) {
 #print "\nThere must be some kind of output file assigned (--csv, --txt, or --txtg)\n";
@@ -164,7 +169,7 @@ my $num=(scalar @files);
 print "\n---------Importing files--------\n";
 print "\tStart input array ",get_time(),"\n";
 print "\tNumber of csv files: ", $num,"\n";
-
+my @header;
 
 #Go through each file from the commandline (ARGV array) and read each line as an array into select array if values satisfy the cutoff
 for (my $i=0; $i<$num; $i++){   #Read files from ARGV
@@ -174,7 +179,10 @@ for (my $i=0; $i<$num; $i++){   #Read files from ARGV
     print $file,"\n";
   
     open(DATA, '<', $file) or die "Could not open '$file' Make sure input .csv files are entered in the command line\n";
-    my $dummy=<DATA>;
+    my $line=<DATA>;
+    @header=split(',',$line);
+    push (@header,"pval");
+    
     while (my $entry = <DATA>) {
     	$entry=cleaner($entry);
 		my @line=split(",",$entry);
@@ -216,7 +224,6 @@ my $totalWindows=0;
 
 #SUBROUTINE FOR EACH WINDOW CALCULATION
 sub OneWindow{
-    my $name=shift @_;
     my $Wstart=shift @_;
     my $Wend=shift@_;
     my $Wavg=0;
@@ -245,16 +252,18 @@ sub OneWindow{
         
         else{   #if ($fields[0]>$Wend){         #if finished with that window, then:
             if ($Wcount!=0){
-                $Wavg=sprintf("%.2f",$Wsum/$Wcount);
+                $Wavg=sprintf("$round",$Wsum/$Wcount);
             }
             else{
                 $Wavg=0;
             }
-                my @window=($name,$Wstart,$Wend,$Wavg,$Wcount,$insertion);
-                $totalWindows++;
-                $totalInsert+=$insertion;
-                #print @Wwindow, "\n";
-                return (\@window);
+       
+            my @window=($Wstart,$Wend,$Wavg,$Wcount,$insertion);
+    
+            $totalWindows++;
+            $totalInsert+=$insertion;
+            #print @Wwindow, "\n";
+            return (\@window);
  #Because count=0 (i.e. there were no insertion mutants in that window)
         }
     }
@@ -265,22 +274,21 @@ sub OneWindow{
 
 ###############################################################################################
 
+
+#WHILE LOOP TO CALL THE ONE WINDOW SUBROUTINE FOR CALCULATIONS
 #Read in user specified windows. Here, use rois.txt for test file.
 
 print "Start calculation: ",get_time(),"\n";
 
 open (CUST, '<', $custom);
+my $dummy=<CUST>;
 my @allWindows;
 while(my $line=<CUST>){
     $line=cleaner($line);
-    my @cwind=split("\t",$line);
-    foreach(@cwind){
-        print $_,"\t";
-    }
-    print "\n";
-    my $start=$cwind[1];
-    my $end=$cwind[2];
-    my $window=OneWindow($cwind[0],$start,$end);
+    my @cwind=split(",",$line);
+    my $start=$cwind[0];
+    my $end=$cwind[1];
+    my $window=OneWindow($start,$end);
     push (@allWindows,$window);
     
 
@@ -288,21 +296,8 @@ while(my $line=<CUST>){
 
 close CUST;
 
-
-
-
-################################################################################################
-
-
-
-
-#WHILE LOOP TO CALL THE ONE WINDOW SUBROUTINE FOR CALCULATIONS===INCREMENTS START AND END VALUES OF THE WINDOW
-
 print "End calculation: ",get_time(),"\n";
 
-#my $avgInsert=$totalInsert/$totalWindows;
-
-#print "Average number of insertions for $size base pair windows: $avgInsert\n";
 
 ##############################################################################################
 
@@ -313,15 +308,15 @@ print "\n---------Assessing essentiality of genome region in each window--------
     my @sites;
 
     #First read fasta file into a string
-    my $seqio = Bio::SeqIO->new(-file => $genome, '-format' => 'Fasta');
+    my $seqio = Bio::SeqIO->new(-file => $fasta, '-format' => 'Fasta');
     my $prev;
     my $total=0;
     while(my $seq = $seqio->next_seq) {
-        $genome = $seq->seq;
+        $fasta = $seq->seq;
     }
     #Get number of "TA" sites, regardless of insertion---this is just the fasta file
     my $x="TA";
-    my @c = $genome =~ /$x/g;
+    my @c = $fasta =~ /$x/g;
     my $countTA = @c;
     
     #At what positions in the genome do TA sites occur?
@@ -336,56 +331,54 @@ print "\n---------Assessing essentiality of genome region in each window--------
     my @allTAsites; #2d array to hold all occurences of TA sites in genome
     my $unmatchedCount=0;
     my $offset=0;
-    my $genPos = index($genome,'TA',$offset);
+    my $genPos = index($fasta,'TA',$offset);
 
-    while (($genPos != -1) and ($pos!=scalar @insertPos)) {
-        my $res=0;
-        if ($genPos>$insertPos[$pos]){
-            push @unmatched,$insertPos[$pos];
-            $unmatchedCount++;
-            $pos++;
-        }
-        if ($genPos==$insertPos[$pos]){
-            $res=1;
-            $countInsert++;
-            $pos++;
-        }
-        my @sites=($genPos,$res);
-        push @selector,$res;    
-        	#push the 0 or 1 onto the array @selector---going to use this to draw random sets for the null distribution
-        push (@allTAsites,\@sites);
-        $offset = $genPos + 1;
-        $genPos = index($genome, 'TA', $offset);
-        $countTA++;    
+while (($genPos != -1) and ($pos!=scalar @insertPos)) { #as long as the TA site is foun
+    my $res=0;
+    if ($genPos>$insertPos[$pos]){
+        push @unmatched,$insertPos[$pos];
+        $unmatchedCount++;
+        $pos++;
     }
+    if ($genPos==$insertPos[$pos]){
+        $res=1;
+        $countInsert++;
+        $pos++;
+    }
+    my @sites=($genPos,$res);
+    push @selector,$res;
+    #push the 0 or 1 onto the array @selector---going to use this to draw random sets for the null distribution
+    push (@allTAsites,\@sites);
+    $offset = $genPos + 1;
+    $genPos = index($fasta, 'TA', $offset);
+    $countTA++;
+}
+my $FILE1 = "$outdir/allTAsites.txt";
+open (ALL_TA, ">", $FILE1);
+foreach my $sit(@allTAsites){
+    foreach (@$sit){
+        print ALL_TA $_, "\t";
+    }
+    printf ALL_TA "\n";
+}
+close ALL_TA;
+my $FILE2 = "$outdir/unmatched.txt";
+unless(open UNM, ">", $FILE2){
+    die "\nUnable to create $FILE2:\n$!";
+}
+foreach (@unmatched){
+    print UNM $_, "\n";
+}
+close UNM;
 
+print "\n\nTotal of unmatched insertions: $unmatchedCount\n";
+print "See unmatched.txt for genome indices of unmatched sites\n";
+print "See allTAsites.txt for details on all TA sites and insertions\n\n";
 
-    my $FILE1 = "$outdir/allTAsites.txt";
-    open (ALL_TA, ">", $FILE1);
-    foreach my $sit(@allTAsites){
-    	foreach (@$sit){
-    		print ALL_TA $_, "\t";
-    	}
-    	printf ALL_TA "\n";
-    }
-    close ALL_TA;
-    my $FILE2 = "$outdir/unmatched.txt";
-    unless(open UNM, ">", $FILE2){
-		die "\nUnable to create $FILE2:\n$!";
-	}
-    foreach (@unmatched){
-        printf UNM $_, "\n";
-    }
-    close UNM;
-    
-    print "\n\nTotal of unmatched insertions: $unmatchedCount\n";
-    print "See unmatched.txt for genome indices of unmatched sites\n";
-    print "See allTAsites.txt for details on all TA sites and insertions\n\n";
- 
 #print "\nTotal: $countInsert insertions in $countTA TA sites.\n";
 
 #-----------------------------------------------------------------------------------------------------------------------------
-    
+
     #Now, have an array for each TA site and if an insertion occurred there. So per site @sites=(position, 0 or 1 for insertion).
     #Next step, create null distribution of 10,000 random sets with same number of TA sites as the window and then calculate p-value
   
@@ -407,6 +400,9 @@ sub stdev{
 	my $std = ($sqtotal / ($N-1)) ** 0.5;
 	return $std;  
 }
+
+
+
 #MAKE LIBRARY OF NULL DISTRIBUTIONS:
 print "Making a library of null distributions.\n For information on distribution library, see nullDist.txt\n";
 
@@ -451,32 +447,23 @@ close DIST;
 #SUBROUTINE TO CALCULATE THE P-VALUE OF THE WINDOW INSERTIONS AGAINST THE NULL DISTRIBUTION
 
 sub pvalue{
-	
- #takes in window count average (countAvg) and number of TAsites and makes a null distribution to calculate the pvalue, which it returns
-	my $countAvg=shift@_;
-	my $TAsites=shift@_;
-	my $N=10000;
-	my $rank= binsearch_pos { $a cmp $b } $countAvg, @{$distLib[$TAsites+1]};
-	my $pval=$rank/$N; #calculate pval as rank/N
-	return $pval;
-	
+    
+    #takes in window count average (countAvg) and number of TAsites and makes a null distribution to calculate the pvalue, which it returns
+    my $countAvg=shift@_;
+    my $TAsites=shift@_;
+    my $N=10000;
+    my $rank= binsearch_pos { $a cmp $b } $countAvg, @{$distLib[$TAsites+1]};
+    my $pval=$rank/$N; #calculate pval as rank/N
+    return $pval;
+    
 }
-    
-    
-#   @win=(
-    #------------------------------------------------------------------------------------------------------------------------
-    
-    print "\n In case you were wondering....the size of genome is: ", length($genome), " bp\n";
-    
-    #Now we have an array called @allTAsites which contains every TAsite position with a 0 next to it for "no insertion".
-    #Now just need to replace 0 with 1 if there IS and insertion at that site
 
-    #FOR TESTING: to print subset of the genome
-        #my $sub=substr($genome,3780,10);
-        #print "\nFrom positions 3780 to 3790: \n  $sub  ";
-    
-    #Just counting number of TA sites in the window
-    
+print "\nThe size of genome is: ", length($fasta), " bp\n";
+
+#Now we have an array called @allTAsites which contains every TAsite position with a 0 next to it for "no insertion".
+#Now just need to replace 0 with 1 if there IS and insertion at that site
+
+
     my @newWindows=();
     my $printNum=0;
 
@@ -485,39 +472,28 @@ print "Start p-value calculation for individual windows: ",get_time(),"\n\n";
 #my $allWindows=\@allWindows;
 for (my $i=0;$i<scalar @allWindows;$i++){
     my @win=@{$allWindows[$i]};
-    foreach (@win){
-        print $_,"\t";
-    }
-    print "\n";
-    my $starter=$win[1];
-    my $ender=$win[2];
-    #print "num $printNum -->\tStart pos: $starter\tEnd pos: $ender\n";
-    #How many TA sites are there from $genome[$start] to $genome[$end]?
+    my $starter=$win[0];
+    my $ender=$win[1];
     my $length=$ender-$starter;
-    my $seq = substr($genome,$starter-1,$length);  #start-1 becase $start and $end are positions in genome starting at 1,2,3.... substr(string,start, length) needs indexes
-    #print "Length= ",$length;
+    my $seq = substr($fasta,$starter-1,$length);  #start-1 becase $start and $end are positions in genome starting at 1,2,3.... substr(string,start, length) needs indexes
     my $ta="TA";
     my @c = $seq =~ /$ta/g;
-    #print "This is scalar c: ", scalar @c,"\n";
     my $TAsites = scalar @c;
     push(@win,$TAsites);
-    #print "This is win[5]: ",$win[5],"\t";
-    my $countAvg=sprintf("$round",($win[5]/$TAsites));
- 
-    push (@win,$countAvg);
-    my $pval=pvalue($countAvg,$TAsites);
+    my $ratio=sprintf("$round",($win[4]/$TAsites));
+    push (@win,$ratio);
+    my $pval=pvalue($ratio,$TAsites);
     push (@win,$pval);
     push (@newWindows,\@win);
-    print "\n";
     $printNum++;
     }
 
    
- print "End p-value calculation: ",get_time(),"\n\n";
+print "End p-value calculation: ",get_time(),"\n\n";
 
 #print "This is the TA count: $count\nTotal genome size is: $total\n\n";
 
-#-------------------------------------------Essentials OUTPUTS------------------------------------------------------------
+#-------------------------------------------Essentials OUTPUTS-------------------------------------
 
 #MAKE OUTPUT CSV FILE WITH ESSENTIAL WINDOW CALCULATIONS
 
@@ -526,8 +502,8 @@ for (my $i=0;$i<scalar @allWindows;$i++){
     # open in append mode
     
 	open (my $FH8, ">$outdir/customWindows.csv");
-	
-    $csvBIG->print($FH8, [ "region", "start", "end","fitness","mutant_count","insertions","TA_sites","ratio","p-value"]); #header
+    my @head=("start", "end","fitness","mutant_count","insertions","TA_sites","ratio","p-value");
+    $csvBIG->print($FH8, \@head); #header
     foreach my $winLine(@newWindows){
         $csvBIG->print($FH8,$winLine);
     }

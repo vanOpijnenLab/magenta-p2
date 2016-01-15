@@ -98,6 +98,7 @@ while (my $line=<F1>){
     if (!$info[6]){
         $info[6]=0;
     }
+    #make hash entry with KEY: geneID and VALUE:array of geneID,meanFit,...,totalInsertion
     $one{$info[0]}=\@info;
 }
 close F1;
@@ -120,19 +121,22 @@ while (my $line=<F2>){
     chomp $line;
     my @info=split(",",$line);
     @info=@info[0,1,2,3,4,5,6];
+    #For field 5 and field 6, can't have empty field so fill in for geneName and totalInsertion
     if (!$info[5]){
         $info[5]="NA";
     }
     if (!$info[6]){
         $info[6]=0;
     }
-
+    #make hash entry with KEY: geneID and VALUE:array of geneID,meanFit,...,totalInsertion
     $two{$info[0]}=\@info;
 }
 close F2;
 
 
-#READ CONVERSION FILE (.CSV) INTO ARRAY. Only want genes that have homolog.
+#READ CONVERSION FILE (.CSV) INTO ARRAY. Meanwhile if homologs exist then take info from hashes (above)
+#conversion file must have strain 1 for file 1 in column 1 (index 0) and strain 2 for file 2 in column 2 (index 1)
+#conversion file must be tab delimited with no NA fields
 
 my @all; #store all homologs in this hash
 open (CONV,'<',$cfile);

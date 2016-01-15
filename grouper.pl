@@ -23,16 +23,16 @@ use autodie;
 
 
 #USAGE from /8-essFilters
-#perl ../Blueberries/grouper.pl --in apples.csv
+#perl ../Blueberries/grouper.pl -i apples.csv
 
 #AVAILABLE OPTIONS. WILL PRINT UPON ERROR
 
 
 # 0:start,1:end,2:fitness,3:mutant_count,4:insertions,5:TA_sites,6:ratio,7:p-value
-print "Sort by options:\n0:Start coord.\n1:End coord\n2:Fitness\n3: mutant count\n4: insertions\n5:TA_sites\n6:ratio\n7: p-value\n8: deviation from mean fitness\n";
+#print "Sort by options:\n0:Start coord.\n1:End coord\n2:Fitness\n3: mutant count\n4: insertions\n5:TA_sites\n6:ratio\n7: p-value\n8: deviation from mean fitness\n";
 
 #ASSIGN INPUTS TO VARIABLES
-our ($in,$h,$size, $bracket,$step,$defEss,$out,$sortby,$round,$super);
+our ($in,$h,$size, $bracket,$step,$out,$sortby,$round,$sig,$fit);
 GetOptions(
 'i:s' => \$in,
 'o:s' =>\$out,
@@ -40,16 +40,27 @@ GetOptions(
 'b'=>\$bracket,
 'size'=>\$size,
 'step'=>\$step,
-'ess'=>\$defEss,
 's:i' => \$sortby,
 'r:i'=> \$round,
-'super'=> \$super,
+'sig'=>\$sig,
+'fit'=>\$fit,
+
 );
 
 if (!$size) {$size=500}   #set the default sliding window size to 500
 if (!$step) {$step=10}
 if (!$out) {$out="orderedGroup.csv"}
 if (!$round){$round='%.3f'}
+#if sortby was not specified then a quicker sortby fitness using -fit flag or default by significance
+if (!$sortby){
+    if ($fit){
+        $sortby=8;
+    }
+    else{
+        $sortby=7;
+    }
+}
+
 
 
 
@@ -75,11 +86,8 @@ sub cleaner{
 open(DATA, '<', $in) or die "Could not open '$in' \n";
 	
 my $line=<DATA>;
-#print "This is the line: ",$line,"stoooooop";
 $line=cleaner($line); #gets rid of carriage returns (^M)
 my @header=split(',',$line);
-
-my $tick=0;
 while (my $entry = <DATA>) {
 	$entry=cleaner($entry);
 	my @fields=split(',',$entry);
@@ -94,13 +102,12 @@ my $count=0; #number of windows added to cumm that will be used for avg calc
 my $sumFit=0;
 my $sumRatio=0;
 
-print "Start grouped txt file creation time: ",get_time(),"\n";
-
+#print "Start grouped txt file creation time: ",get_time(),"\n";
 
 
 #What's the mean fitness value for all of the windows?
 my @allFits = map $_->[2], @windows;
-my $meanFit=mean(@allFits); #not sure what module this needs
+my $meanFit=mean(@allFits);
 
 #Add the absolute deviation from mean fitness to each window array (use this to sort)
 my @expWindows=();
@@ -112,8 +119,17 @@ foreach (@windows){
 	} 
 	
 #Now sort @expWindows by the abs. dev. of fitness (index 8). Reuse old @windows variable
-@windows= sort {$a->[$sortby]<=>$b->[$sortby] || 
+
+#For sorting by fitness, want top of file to show most interesting regions---high dev. from mean
+if ($fit){
+    @windows= sort {$b->[$sortby]<=>$a->[$sortby] ||
 	$a->[0]<=>$b->[0] } @expWindows;
+}
+#For sorting by significance, most interesting region are low pvals. so sort with smallest values at top
+else{
+    @windows= sort {$a->[$sortby]<=>$b->[$sortby] ||
+    $a->[0]<=>$b->[0] } @expWindows;
+}
 
 open my $gOut, '>', "$out" or die $!;
 
@@ -133,13 +149,6 @@ my ($cstart,$cend,$cfit,$cmcount,$cins,$cta,$cratio,$cpval,$cdev)=@cumu;
 for (my $i=1;$i<$lastLine;$i++){
 	my @field=@{$windows[$i]};
 	my ($fstart,$fend,$ffit,$fmcount,$fins,$fta,$fratio,$fpval,$fdev)=@field;
-	if ($super){
-		$ffit=sprintf('%.1f',$ffit);
-		}
-	#$sumFit=$cumu[2];
-	#$count=$cumu[3];
-	#$sumRatio=$cumu[6];
-	
     #either this window needs to be added or need to start new cumm
 	
 	#Add field window (@field) if overlaps with cumulative window (@cumu)
@@ -153,7 +162,7 @@ for (my $i=1;$i<$lastLine;$i++){
 	else{ #need to output this cumm region with average calcs
 		$cratio=sprintf("$round",($cins/$cta));
 		if ($cins !=0){
-			$cfit=sprintf('%.1f',($sumFit/$cins)); #not accurate
+			$cfit=sprintf('%.2f',($sumFit/$cins)); #not accurate
 			}
 		else{
 			$cfit=0;
