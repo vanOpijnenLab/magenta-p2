@@ -2,7 +2,7 @@
 
 #Margaret Antonio 16.01.13
 
-#USAGE: perl compGenes.pl <options> <aggregateFile1.csv aggregateFile2.csv> OR -indir <indir/>
+#USAGE: perl compGenes.pl <options> [<aggregateFile1.csv aggregateFile2.csv> OR -indir <indir/>]
 
 use Data::Dumper;
 use strict;
