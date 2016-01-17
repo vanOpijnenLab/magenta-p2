@@ -3,10 +3,11 @@
 #Margaret Antonio 16.01.13
 
 #DESCRIPTION: Takes two aggregate.pl outputs and compares them using mean difference, pval for each
-#gene. Can compare, for example, control vs antibiotic. DIFFERENT GENOMES (ie. diff. strains).
+#gene. Can compare, for example, 19F in glucose and TIGR4 in glucose.
+#DIFFERENT GENOMES (ie. diff. strains).
 #Requires CONVERSION FILE
 
-#USAGE: perl compGenes.pl <aggregateFile1.csv aggregateFile2.csv> OR -indir <indir/> -c <convFile>
+#USAGE: perl compGenes.pl -c <convFile> -indir <indir/> OR <aggregateFile1.csv aggregateFile2.csv>
 
 use Data::Dumper;
 use strict;
@@ -27,16 +28,21 @@ GetOptions(
 'c:s'=>\$cfile,
 );
 
-if (!$cfile){ print "Must input conversion file under the flag -c\n" and die;}
-
-sub get_time() {
-    my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime(time);
-    return "$hour:$min:$sec";
+if ($h){
+    print_usage();
+    exit;
 }
+
+#CHECK FOR CONVERSION FILE (.CSV WITH TWO COLUMNS: STRAIN 1 GENES , STRAIN 2 GENES)
+if (!$cfile){
+    print "Must input conversion file under the flag -c\n" and exit;
+}
+
+#THE @files ARRAY WILL CONTAIN INPUT FILE NAMES, EXTRACTED FROM A DIRECTORY (-indir) OR ARGV
 my @files;
 if ($indir){
     my $directory="$indir";
-    opendir(DIR, $directory) or die "couldn't open $directory: $!\n";
+    opendir(DIR, $directory) or die "Couldn't open $directory: $!\n";
     my @direct= readdir DIR;
     my $tail=".csv";
     foreach (@direct){
@@ -50,26 +56,26 @@ if ($indir){
 else{
     @files=@ARGV;
 }
-my $num=(scalar @files);
 
-
-#SET LABELS
+#GET LABELS: USE (-l) OR USE FILNEAMES AS LABELS FOR COLUMNS IN OUTPUT FILE
 
 my @labels;
 if ($l){
     @labels=split(',',$l);
 }
 else{
-    #get rid of .csv part in file names and use as labels
     foreach (@files){
-       my @temp=split('\\.',$_);
-       my $colName=$temp[0];
-       push (@labels,$colName);
-   }
+        my @temp=split('\\.',$_);
+        my $colName=$temp[0];
+        push (@labels,$colName);
+    }
 }
+
+#CHECK IF REQ. VARIABLES WERE DEFINED USING FLAGS. IF NOT THEN USE DEFAULT VALUES
 
 if (!$out) {$out="comp-".$labels[0].$labels[1].".csv"}
 if (!$round){$round='%.4f'}
+
 
 #OPEN AGGREGATE GENE FILES INPUTTED INTO ARGV or INDIR and put them in hashes
 
