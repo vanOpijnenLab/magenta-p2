@@ -65,7 +65,7 @@ if ($indir){
 }
 else{
     @files=@ARGV;
-}
+    }
 
 #GET LABELS: USE (-l) OR USE FILNEAMES AS LABELS FOR COLUMNS IN OUTPUT FILE
 
@@ -75,15 +75,17 @@ if ($l){
 }
 else{
     foreach (@files){
-       my @temp=split('\\.',$_);
+       my $filename=basename($_);
+       my @temp=split(/\./,$filename);
        my $colName=$temp[0];
+       print $colName,"\t";
        push (@labels,$colName);
    }
 }
 
 #CHECK IF REQ. VARIABLES WERE DEFINED USING FLAGS. IF NOT THEN USE DEFAULT VALUES
 
-if (!$out) {$out="comp-".$labels[0].$labels[1].".csv"}
+if (!$out) {$out="comp.".$labels[0].$labels[1].".csv"}
 if (!$round){$round='%.4f'}
 
 #READ INPUT FILES AND PUT GENE INFO FROM EACH LINE INTO HASH %all WHERE KEY=GENE_ID AND
@@ -176,7 +178,7 @@ if (!$sortkey){
 my @sorted = sort { $b->[$sortkey] <=> $a->[$sortkey] } @unsorted;
 
 #ADD NEW FIELDS TO HEADER (COLUMN NAMES)
-my $field="Mean".$labels[0].'-'.$labels[1];
+my $field="Mean".$labels[0].'.'.$labels[1];
 push (@header,$field,"DOF","TDIST","PVALUE");
 
 #PRINT TO OUT FILE

@@ -19,7 +19,7 @@ use File::Basename;
 use Statistics::Distributions;
 
 #ASSIGN INPUTS TO VARIABLES USING FLAGS
-our ($indir,$h,$out,$sortkey,$round,$h,$l,$cfile);
+our ($indir,$h,$out,$sortkey,$round,$l,$cfile);
 GetOptions(
 'd:s' => \$indir,
 'h' => \$h,
@@ -27,13 +27,13 @@ GetOptions(
 's:i' => \$sortkey,
 'r:i'=> \$round,
 'l:s'=> \$l,
-'cfile:s'=> \$cfile,
+'c:s'=> \$cfile,
 );
 
 sub print_usage() {
     print "\n";
     print "compStrains.pl: COMPARE GENES FROM A TWO TN-SEQ EXPERIMENT\n";
-    print "\t(OF DIFFERENT ORGANISMS/STRAINS (GENOMES) USING AGGREGATE FILES\n\n";
+    print "\t(OF DIFFERENT ORGANISMS/STRAINS (GENOMES)) USING AGGREGATE FILES\n\n";
     print "DESCRIPTION: Takes two aggregate.pl outputs and compares them by calculating\n";
     print "the difference in mean fitness, the pval for each gene.\n";
     print "Example: two strains tested under same condition.\n";
@@ -83,7 +83,8 @@ if ($l){
 }
 else{
     foreach (@files){
-        my @temp=split('\\.',$_);
+        my $filename=basename($_);
+        my @temp=split('\\.',$filename);
         my $colName=$temp[0];
         push (@labels,$colName);
     }
@@ -91,7 +92,7 @@ else{
 
 #CHECK IF REQ. VARIABLES WERE DEFINED USING FLAGS. IF NOT THEN USE DEFAULT VALUES
 
-if (!$out) {$out="comp-".$labels[0].$labels[1].".csv"}
+if (!$out) {$out="comp.".$labels[0].$labels[1].".csv"}
 if (!$round){$round='%.4f'}
 
 #OPEN INPUTTED AGGREGATE GENE FILES AND STORE THEIR CONTENTS INTO TWO HASHES
@@ -206,7 +207,7 @@ if (!$sortkey){
 my @sorted = sort { $b->[$sortkey] <=> $a->[$sortkey] } @all;
 
 #FINISH THE HEADER BY ADDING COLUMN NAMES FOR MEAN-DIFF, DOF, TDIST, AND PVALUE
-my $field="MeanDiff(".$labels[0].'-'.$labels[1].")";
+my $field="MeanDiff(".$labels[0].'.'.$labels[1].")";
 push (@header,$field,"DOF","TDIST","PVALUE");
 
 #PRINT MATCHED HOMOLOG INFORMATION INTO A SINGLE OUTPUT FILE
