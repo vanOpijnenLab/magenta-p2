@@ -128,13 +128,6 @@ if ($log){
     open (STDOUT, ">>$outdir/log.txt");
 }
 
-
-#if ((!$csv) and (!$txt) and (!$txtg) and (!$wig)) {
-#print "\nThere must be some kind of output file assigned (--csv, --txt, or --txtg)\n";
-#print_usage();
-#die;
-#}
-
 #CREATE AN ARRAY OF DATA FROM INPUT CSV FILE(S)
 
 my $rowCount=-1;

@@ -2,14 +2,11 @@
 
 #Margaret Antonio 15.12.10
 
-#15.12.10: Things To Do for ESSENTIALS:
-    #1) If region is essential, then fitness of single insertion doesn't matter. Instead look at 2000 bp before and after to check if it is a cold spot. If many insertions before and after essential region, then it is a TRUE essential region. DONE
-    #2) Should output everything including regions that don't have "enough" TA sites DONE
-
 #SLIDING WINDOW: a culmination of fitness calculation, essentiality determination,
     #and TA site and insertion statistics for automatically generated sliding widnow throughout genome
 
 #perl ../Blueberries/slidingWindow.pl --size 500 --fasta tigr4_genome.fasta --indir 2394_PennG/ --log --ref NC_003028b2.gbk
+#perl ../../Blueberries/slidingWindow.pl --size 500 --fasta ../../0-genome/tigr4_genome.fasta --indir ../T4Dapto/ --log --ref NC_003028b2.gbk
 
 #cpanm Getopt::Long Data::Random List::Util File::Path File::Basename
 #cpanm List::BinarySearch List::BinarySearch::XS List::MoreUtils 
@@ -17,6 +14,7 @@
 
 use strict;
 use Getopt::Long;
+use Set::Scalar;
 use warnings;
 use Text::CSV;
 use Bio::SeqIO;
@@ -62,7 +60,7 @@ sub print_usage() {
 
 
 #ASSIGN INPUTS TO VARIABLES
-our ($round,$random,$txt,$txtg,$cutoff,$wig,$infile, $csv, $step, $h, $outdir,$size,$fasta, $log, $ref_genome,$tan,$indir,$inc,$sortby);
+our ($round,$random,$txt,$txtg,$cutoff,$wig,$infile, $csv, $step, $h, $outdir,$size,$fasta, $log, $ref_genome,$tan,$indir,$inc,$sortby,$weight_ceiling,$weight);
 GetOptions(
 'wig:s' => \$wig,
 'ref:s' => \$ref_genome,
@@ -83,6 +81,8 @@ GetOptions(
 'indir:s'=>\$indir,
 'inc:i'=>\$inc,
 'sort:i'=>\$sortby,
+'wc:i'=>\$weight_ceiling,
+'w'=>\$weight,
 );
 
 sub get_time() {
@@ -98,7 +98,7 @@ if ($h){
 	if ($txtg){print "Text file for grouped windows: $txtg\n";}
 }
 if (!$round){$round='%.3f';}
-if (!$outdir){$outdir="F-151228";}
+if (!$outdir){$outdir="newout";}
 if (!$inc){$inc=20;}
 mkpath($outdir);
 
@@ -128,12 +128,99 @@ print "Cutoff: $cutoff\n";
 #die;
 #}
 
+# Returns mean, variance, sd, se
+sub average {
+    my $scoreref = shift @_;
+    my @scores = @{$scoreref};
+    
+    my $sum=0;
+    my $num=0;
+    
+    # Get the average.
+    foreach my $w (@scores) {
+        $sum += $w;
+        $num++;
+    }
+    my $average= $sum/$num;
+    my $xminusxbars = 0;
+    
+    # Get the variance.
+    foreach my $w (@scores) {
+        $xminusxbars += ($w-$average)**2;
+    }
+    my $variance;
+    if ($num<=1){
+        $variance=0.10;
+    }
+    else{
+        $variance = sprintf($round,(1/($num-1)) * $xminusxbars);
+    }
+    my $sd = sprintf($round,sqrt($variance));
+    my $se = sprintf($round,$sd / sqrt($num));
+    
+    return ($average, $variance, $sd, $se);
+    
+}
+
+# Takes two parameters, both hashrefs to lists.
+# 1) hashref to list of scores
+# 2) hashref to list of weights, equal in length to the scores.
+sub weighted_average {
+    
+    my $scoreref = shift @_;
+    my $weightref = shift @_;
+    my @scores = @{$scoreref};
+    my @weights = @{$weightref};
+    
+    my $sum=0;
+    my ($weighted_average, $weighted_variance)=(0,0);
+    my $v2;
+    
+    # Go through once to get total, calculate V2.
+    for (my $i=0; $i<@weights; $i++) {
+        $sum += $weights[$i];
+        $v2 += $weights[$i]**2;
+    }
+    if ($sum == 0) { return 0; } # No scores given?
+    
+    my $scor = join (' ', @scores);
+    my $wght = join (' ', @weights);
+    #print "Scores: $scor\n";
+    #print "Weights: $wght\n";
+    
+    # Now calculated weighted average.
+    my ($top, $bottom) = (0,0);
+    for (my $i=0; $i<@weights; $i++) {
+        $top += $weights[$i] * $scores[$i];
+        $bottom += $weights[$i];
+    }
+    $weighted_average = sprintf($round,$top/$bottom);
+    #print "WA: $weighted_average\n";
+    
+    ($top, $bottom) = (0,0);
+    # Now calculate weighted sample variance.
+    for (my $i=0; $i<@weights; $i++) {
+        $top += ( $weights[$i] * ($scores[$i] - $weighted_average)**2);
+        $bottom += $weights[$i];
+    }
+    $weighted_variance = sprintf($round,$top/$bottom);
+    #print "WV: $weighted_variance\n";
+    
+    my $weighted_stdev = sprintf($round,sqrt($weighted_variance));
+    my $weighted_stder = sprintf($round,$weighted_stdev / sqrt(@scores));  # / length scores.
+    
+    #print "$weighted_average, $weighted_variance, $weighted_stdev\n";
+    return ($weighted_average, $weighted_variance, $weighted_stdev, $weighted_stder);
+}
+
 #CREATE AN ARRAY OF DATA FROM INPUT CSV FILE(S)
 
 my $rowCount=-1;
 my $last=0;
 my @unsorted;
 my @insertPos; #array to hold all positions of insertions. Going to use this later to match up with TA sites
+if (!$weight_ceiling){$weight_ceiling=999999;}
+my %wind_summary;
 
 my @files;
 if ($indir){
@@ -162,48 +249,41 @@ print "\tStart input array ",get_time(),"\n";
 print "\tNumber of csv files: ", $num,"\n";
 
 
-#Go through each file from the commandline (ARGV array) and read each line as an array into select array if values satisfy the cutoff
-for (my $i=0; $i<$num; $i++){   #Read files from ARGV
+#Go through each file from the commandline (ARGV array) and read each line as an array
+#into select array if values satisfy the cutoff
+for (my $i=0; $i<$num; $i++){
 	print "File #",$i+1,"\t";
-    
     my $file=$files[$i];
     print $file,"\n";
     
     open(DATA, '<', $file) or die "Could not open '$file' Make sure input .csv files are entered in the command line\n";
-      my $dummy=<DATA>;
+    my $dummy=<DATA>; #read and store column names in dummy variable
     while (my $entry = <DATA>) {
     	chomp $entry;
 		my @line=split(",",$entry);
-        my $w = $line[12];
-        if (!$w){next;} # For blanks
-        else{
-            my $c1 = $line[2];
-            my $c2 = $line[3];
-            my $avg = ($c1+$c2)/2;
-            if ($avg > $cutoff) {
-                my @select=($line[0],$line[12]);
-                my $select=\@select;
-                push(@unsorted,$select);
-                push(@insertPos,$line[0]);   #keep track of actual insertion site position
-                $last=$select[0];
-                $rowCount++;  
-            }
+        my $locus = $line[9]; #gene id (SP_0000)
+        my $w = $line[12]; #nW
+        if (!$w){ $w=0 }   # For blanks
+        my $c1 = $line[2];
+        my $c2 = $line[3];
+        my $avg = ($c1+$c2)/2;
+        #Average counts must be greater than cutoff (minimum allowed)
+        if ($avg > $cutoff) {
+            my @select=($line[0],$w,$avg);
+            my $select=\@select;
+            push(@unsorted,$select);
+            push(@insertPos,$line[0]);   #keep track of actual insertion site position
+            $last=$select[0];
+            $rowCount++;
         }
+        if ($avg >= $weight_ceiling) { $avg = $weight_ceiling; } # Maximum weight
     }
     close DATA;
 }
 
 my @sorted = sort { $a->[0] <=> $b->[0] } @unsorted;
-
 @insertPos = sort { $a <=> $b } @insertPos;
 @insertPos= uniq @insertPos;
-
-#for (my $i=0;$i<30;$i++){
-#    foreach my $element ( @{ $sorted[$i] }){
-#        print $element,"\t";
-#    }
-#    print "\n";
-#}
 
 print "\n\tFinished input array ",get_time(),"\n";
 
@@ -221,7 +301,6 @@ my $totalWindows=0;
 sub OneWindow{
     my $Wstart=shift @_;
     my $Wend=shift@_;
-    my $Wavg=0;
     my $Wcount=0;
     my $insertion=0;
     my $Wsum=0;
@@ -233,10 +312,20 @@ sub OneWindow{
         if ($fields[0]<$Wstart){  #if deleted, error shows up
             next;
         }
+        my $w=$fields[1];
+        my $avgCount=$fields[2];
         if ($fields[0]<=$Wend){
             if ($fields[0]<($Wstart+$step)){
                 $marker++;
             }
+            my @empty;
+            
+            if (!$wind_summary{$Wstart}) {
+                $wind_summary{$Wstart}{w} = [@empty];
+                $wind_summary{$Wstart}{s} = [@empty];
+            }
+            $wind_summary{$Wstart}{w} = [@{$wind_summary{$Wstart}{w}}, $w];  # List of Fitness scores.
+            $wind_summary{$Wstart}{s} = [@{$wind_summary{$Wstart}{s}}, $avgCount]; # List of counts used to generate those fitness scores.
             $Wsum+=$fields[1];
             $Wcount++;
             if ($fields[0]!=$lastPos){
@@ -244,26 +333,37 @@ sub OneWindow{
                 $lastPos=$fields[0];
             }
         }
-        
-        else{   #if ($fields[0]>$Wend){         #if finished with that window, then:
-            if ($Wcount!=0){
-                $Wavg=sprintf("%.2f",$Wsum/$Wcount);
-                my @window=($Wstart,$Wend,$Wavg,$Wcount,$insertion);
+        #if ($fields[0]>$Wend) #finished with that window, then:
+        else{
+            if ($Wcount>0){
                 $totalWindows++;
                 $totalInsert+=$insertion;
-                #print @Wwindow, "\n";
+                
+                my ($average, $variance, $stdev, $stderr);
+        
+                if ($num <=1 ) {
+                    ($average, $variance, $stdev, $stderr)=(0.10,0.10,"X","X");
+                }
+                else{
+                    if (!$weight) {
+                        ($average, $variance, $stdev, $stderr) = &average($wind_summary{$Wstart}{w});
+                    }
+                    else {
+                        ($average, $variance, $stdev, $stderr)= &weighted_average($wind_summary{$Wstart}{w},$wind_summary{$Wstart}{s});
+                    }
+                }
+                my @window=($Wstart,$Wend,$Wcount,$insertion,$average,$variance,$stdev,$stderr);
                 return (\@window);
             }
  
             else{ #Even if there were no insertions, still want window in file for consistent start/end
-                my @window=($Wstart,$Wend,0,0,0);
+                my @window=($Wstart,$Wend,0,0,0,0,0.10,0.10,"X","X");
                 return (\@window);
             }  	#Because count=0 (i.e. there were no insertion mutants in that window)
+            
         }
     }
 }
-
-
 
 
 print "Start calculation: ",get_time(),"\n";
@@ -364,8 +464,10 @@ while (($genPos != -1) and ($pos!=scalar @insertPos)) { #as long as the TA site 
 
 #--------------------------------------------------------------------------------------------------
     
-    #Now, have an array for each TA site and if an insertion occurred there. So per site @sites=(position, 0 or 1 for insertion).
-    #Next step, create null distribution of 10,000 random sets with same number of TA sites as the window and then calculate p-value
+#Now, have an array for each TA site and if an insertion occurred there.
+    #So per site @sites=(position, 0 or 1 for insertion).
+#Next step, create null distribution of 10,000 random sets with same number of
+    #TA sites as the window and then calculate p-value
   
 #SUBROUTINE FOR MAKING THE NULL DISTRIBUTION SPECIFIC TO THE WINDOW
 
@@ -463,6 +565,8 @@ for (my $i=0;$i<scalar @allWindows;$i++){
     my @win=@{$allWindows[$i]};
     my $starter=$win[0];
     my $ender=$win[1];
+    my $insertions=$win[3];
+    my $mutcount=$win[2];
     #print "num $printNum -->\tStart pos: $starter\tEnd pos: $ender\n";
     #How many TA sites are there from $genome[$start] to $genome[$end]?
 
@@ -470,12 +574,13 @@ for (my $i=0;$i<scalar @allWindows;$i++){
     my $ta="TA";
     my @c = $seq =~ /$ta/g;
     my $TAsites = scalar @c;
-    push(@win,$TAsites);
-    my $countAvg=sprintf("$round",$win[4]/$TAsites);
-    push (@win,$countAvg);
-    my $pval=pvalue($countAvg,$TAsites);
-    push (@win,$pval);
-    push (@newWindows,\@win);
+    my $avgInsert=sprintf("$round",$insertions/$TAsites);
+    my $pval=pvalue($avgInsert,$TAsites);
+    
+    #reorder so things make more sense: all fitness related calcs together and all sig together
+    my @new=($starter,$ender,$mutcount,$insertions,$TAsites,$avgInsert,$pval,$win[4],$win[5],$win[6]);
+    
+    push (@newWindows,\@new);
     $printNum++;
     }
 
@@ -484,24 +589,25 @@ for (my $i=0;$i<scalar @allWindows;$i++){
 
 #print "This is the TA count: $count\nTotal genome size is: $total\n\n";
 
-
+#CALCULATE THE ABSOLUTE DIFFERENCE BETWEEN REGION'S MEAN FITNESS AND AVERAGE MEAN FITNESS
 ### For all windows, add a field that has the difference between that window's mean fitness and the
 #average mean fitness for all of the windows
 
-my @allFits = map $_->[2], @newWindows;
+my @allFits = map $_->[7], @newWindows;
 my $meanFit=mean(@allFits);
 print "Average fitness for all windows: ",$meanFit,"\n";
 my @expWindows=();
 foreach (@newWindows){
     my @entry=@{$_};
-    my $mean=$entry[2];
-    my $absdev=sprintf("$round",abs($mean-$meanFit));
-    push @entry,$absdev;        #now becomes index [8], column 7 after pvalue
+    my $mean=$entry[7];
+    my $absdev=sprintf("$round",$mean-$meanFit);
+    print $absdev,"\t";
+    push (@entry,$absdev);
     push @expWindows,\@entry;
 }
 @newWindows= sort {$b->[$sortby]<=>$a->[$sortby]} @expWindows;
 
-#-------------------------------------------Essentials OUTPUTS------------------------------------------------------------
+#-------------------------------------------Essentials OUTPUTS--------------------------------------
 
 #MAKE OUTPUT CSV FILE WITH ESSENTIAL WINDOW CALCULATIONS
 
@@ -511,7 +617,7 @@ foreach (@newWindows){
     
 	open (my $FH8, ">$outdir/slidingWindows.csv");
 	
-    $csvBIG->print($FH8, [ "start", "end","fitness","mutant_count","insertions","TA_sites","ratio","p-value","fitness-meanFit"]); #header
+    $csvBIG->print($FH8, [ "start", "end","mutants","insertions","TA_sites","ratio","p-value","average", "variance","stdev","stderr","fit-mean"]); #header
     foreach my $winLine(@newWindows){
         $csvBIG->print($FH8,$winLine);
     }
