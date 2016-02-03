@@ -269,7 +269,7 @@ for (my $i=0; $i<$num; $i++){
         my $avg = ($c1+$c2)/2;
         #Average counts must be greater than cutoff (minimum allowed)
         if ($avg > $cutoff) {
-            my @select=($line[0],$w,$avg);
+            my @select=($line[0],$w,$avg,$line[9]);
             my $select=\@select;
             push(@unsorted,$select);
             push(@insertPos,$line[0]);   #keep track of actual insertion site position
@@ -306,16 +306,21 @@ sub OneWindow{
     my $Wsum=0;
     my $lastPos=0;
     my $i;
+    my @allgenes=();
     
     for ($i=$marker;$i<$rowCount;$i++){
         my @fields=@{$sorted[$i]};
+
         if ($fields[0]<$Wstart){  #if deleted, error shows up
             next;
         }
-        my $w=$fields[1];
+        my $pos=$fields[0];
+        my $w=$fields[1];         #fitness value for single insertion
         my $avgCount=$fields[2];
-        if ($fields[0]<=$Wend){
-            if ($fields[0]<($Wstart+$step)){
+        my $gene=$fields[3];
+
+        if ($pos<=$Wend){
+            if ($pos<($Wstart+$step)){
                 $marker++;
             }
             my @empty;
@@ -323,14 +328,26 @@ sub OneWindow{
             if (!$wind_summary{$Wstart}) {
                 $wind_summary{$Wstart}{w} = [@empty];
                 $wind_summary{$Wstart}{s} = [@empty];
+                $wind_summary{$Wstart}{g} = [@empty];
             }
-            $wind_summary{$Wstart}{w} = [@{$wind_summary{$Wstart}{w}}, $w];  # List of Fitness scores.
-            $wind_summary{$Wstart}{s} = [@{$wind_summary{$Wstart}{s}}, $avgCount]; # List of counts used to generate those fitness scores.
-            $Wsum+=$fields[1];
+            # Hash of Fitness scores.
+            $wind_summary{$Wstart}{w} = [@{$wind_summary{$Wstart}{w}}, $w];
+            # Hash of counts used to generate those fitness scores.
+            $wind_summary{$Wstart}{s} = [@{$wind_summary{$Wstart}{s}}, $avgCount];
+            # Hash of genes for whole window
+            #if (! grep( /^$gene$/, @{$wind_summary{$Wstart}{g}} )){
+            #print $gene,"\n";
+            #$wind_summary{$Wstart}{g} = [@{$wind_summary{$Wstart}{g}}, $gene];
+            #}
+            $gene=~ s/"//g;
+            $gene=~ s/ //g;
+            $gene=~ s/'//g;
+            push @allgenes,$gene;
+            $Wsum+=$w;
             $Wcount++;
-            if ($fields[0]!=$lastPos){
+            if ($pos!=$lastPos){
                 $insertion+=1;
-                $lastPos=$fields[0];
+                $lastPos=$pos;
             }
         }
         #if ($fields[0]>$Wend) #finished with that window, then:
@@ -352,12 +369,18 @@ sub OneWindow{
                         ($average, $variance, $stdev, $stderr)= &weighted_average($wind_summary{$Wstart}{w},$wind_summary{$Wstart}{s});
                     }
                 }
-                my @window=($Wstart,$Wend,$Wcount,$insertion,$average,$variance,$stdev,$stderr);
+                #my @gs;
+                #foreach my $g(@{$wind_summary{$Wstart}{g}}){
+                # push (@gs,$g);
+                #}
+                #my $wind_genes=join(' ',@gs);
+                my $wind_genes=join(' ',@allgenes);
+                my @window=($Wstart,$Wend,$Wcount,$insertion,$wind_genes,$average,$variance,$stdev,$stderr);
                 return (\@window);
             }
  
             else{ #Even if there were no insertions, still want window in file for consistent start/end
-                my @window=($Wstart,$Wend,0,0,0,0,0.10,0.10,"X","X");
+                my @window=($Wstart,$Wend,$Wcount,$insertion," ","X","X","X","X");
                 return (\@window);
             }  	#Because count=0 (i.e. there were no insertion mutants in that window)
             
@@ -578,7 +601,7 @@ for (my $i=0;$i<scalar @allWindows;$i++){
     my $pval=pvalue($avgInsert,$TAsites);
     
     #reorder so things make more sense: all fitness related calcs together and all sig together
-    my @new=($starter,$ender,$mutcount,$insertions,$TAsites,$avgInsert,$pval,$win[4],$win[5],$win[6]);
+    my @new=($starter,$ender,$mutcount,$insertions,$TAsites,$avgInsert,$pval,$win[5],$win[6],$win[7],$win[8],$win[4]);
     
     push (@newWindows,\@new);
     $printNum++;
@@ -601,7 +624,6 @@ foreach (@newWindows){
     my @entry=@{$_};
     my $mean=$entry[7];
     my $absdev=sprintf("$round",$mean-$meanFit);
-    print $absdev,"\t";
     push (@entry,$absdev);
     push @expWindows,\@entry;
 }
@@ -617,7 +639,7 @@ foreach (@newWindows){
     
 	open (my $FH8, ">$outdir/slidingWindows.csv");
 	
-    $csvBIG->print($FH8, [ "start", "end","mutants","insertions","TA_sites","ratio","p-value","average", "variance","stdev","stderr","fit-mean"]); #header
+    $csvBIG->print($FH8, [ "start", "end","mutants","insertions","TA_sites","ratio","p-value","average", "variance","stdev","stderr","genes","fit-mean"]); #header
     foreach my $winLine(@newWindows){
         $csvBIG->print($FH8,$winLine);
     }
@@ -708,7 +730,7 @@ if ($txt){
 
 
 
-#----------------OUTPUT REGULAR SLIDING INFORMATION WITHOUT ESSENTIALS CALCULATIONS (P-VALUES)----------------------
+#OUTPUT REGULAR SLIDING INFORMATION WITHOUT ESSENTIALS CALCULATIONS (P-VALUES)
 
 
 #MAKE OUTPUT CSV FILE WITH FITNESS WINDOW CALCULATIONS
@@ -763,7 +785,10 @@ if ($txtg or $txt){
     print "End text file creation: ",get_time(),"\n\n";
 
 
+<<'WONKYCODE';
+
 #MAKING A TEXT FILE OF GROUPED CONSECUTIVE WINDOWS WITH SAME FITNESS
+
 
     print "Start grouped txt file creation time: ",get_time(),"\n";
     open my $TXTg, '>', "$outdir/groupedWindows.txt" or die $!;
@@ -794,7 +819,7 @@ if ($txtg or $txt){
     
 
 
-
+WONKYCODE
 
 
 
