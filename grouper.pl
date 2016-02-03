@@ -99,6 +99,22 @@ my $count=0; #number of windows added to cumm that will be used for avg calc
 my $sumFit=0;
 my $sumRatio=0;
 
+=======
+
+
+#GET MEAN FITNESS FOR ALL WINDOWS/REGIONS/LINES
+my @allFits = map $_->[2], @windows;
+my $meanFit=mean(@allFits);
+
+#CALCULATE THE ABSOLUTE DIFFERENCE BETWEEN REGION'S MEAN FITNESS AND AVERAGE MEAN FITNESS
+my @expWindows=();
+foreach (@windows){
+	my @entry=@{$_};	
+	my $absdev=sprintf('%.2f',abs($entry[2]-$meanFit));
+	push @entry,$absdev;
+	push @expWindows,\@entry;	
+	} 
+>>>>>>> 8891309359f1ef26100eed0abcb9126064646e6a
 	
 #SORT ALL REGIONS BY ABS. DIFF. BTWN REGION'S MEAN DIFF AND AVG MEAN FITNESS (index 8).
 #If sort by fitness, most interesting regions have high mean differece so sort largest to smallest
