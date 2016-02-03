@@ -15,6 +15,9 @@ use List::BinarySearch::XS;
 use List::MoreUtils qw(uniq);
 use feature qw/say/;
 use autodie;
+use Scalar::Util qw(looks_like_number);
+use List::MoreUtils qw(uniq);
+#no warnings 'numeric';
 
 sub print_usage() {
     print "\n";
@@ -30,10 +33,6 @@ sub print_usage() {
     print " -fit\t Group consecutive windows of same fitness value\n";
     print " -r\tRound final output numbers to this number of decimals\n";
     print "\n\n";
-}
-if ($h){
-    print_usage();
-    exit;
 }
 
 
@@ -52,16 +51,22 @@ GetOptions(
 
 );
 
+if ($h){
+    print_usage();
+    exit;
+}
+
+
 #Assign defaults
 if (!$out) {$out="groupedWindows.csv"}
-if (!$round){$round='%.3f'}
+if (!$round){$round='%.2f'}
 #if sortby was not specified then use -fit flag or default by significance
 if (!$sortby){
     if ($fit){
         $sortby=7;
     }
     else{
-        $sortby=10;
+        $sortby=6;
     }
 }
 
@@ -82,7 +87,7 @@ sub cleaner{
 #READ INPUT FILE INTO A 2D ARRAY @windows
 
 my $in=$ARGV[0]; #get input file from first entry in ARGV
-my @windows;
+my @unsorted;
 open(DATA, '<', $in) or die "Could not open '$in' \n";
 #Store first line for use as column names of output file
 my $line=<DATA>;
@@ -91,83 +96,147 @@ my @header=split(',',$line);
 while (my $entry = <DATA>) {
 	$entry=cleaner($entry);
 	my @fields=split(',',$entry);
-	push (@windows,\@fields);     
+    if ($fit){
+        my $bool=looks_like_number($fields[7]);
+        if ($bool and ($fields[7] !=0)){
+            $fields[7]=sprintf($round,$fields[7]);
+            push (@unsorted,\@fields);
+        }
+        
+    }
+    else{
+        push (@unsorted,\@fields);
+    }
 }
 close DATA;
 
 my $count=0; #number of windows added to cumm that will be used for avg calc
 my $sumFit=0;
 my $sumRatio=0;
+my $string;
 
-=======
 
-
-#GET MEAN FITNESS FOR ALL WINDOWS/REGIONS/LINES
-my @allFits = map $_->[2], @windows;
-my $meanFit=mean(@allFits);
-
-#CALCULATE THE ABSOLUTE DIFFERENCE BETWEEN REGION'S MEAN FITNESS AND AVERAGE MEAN FITNESS
-my @expWindows=();
-foreach (@windows){
-	my @entry=@{$_};	
-	my $absdev=sprintf('%.2f',abs($entry[2]-$meanFit));
-	push @entry,$absdev;
-	push @expWindows,\@entry;	
-	} 
->>>>>>> 8891309359f1ef26100eed0abcb9126064646e6a
-	
-#SORT ALL REGIONS BY ABS. DIFF. BTWN REGION'S MEAN DIFF AND AVG MEAN FITNESS (index 8).
 #If sort by fitness, most interesting regions have high mean differece so sort largest to smallest
+my @outarray;
+
 if ($fit){
-    @windows= sort {$b->[$sortby]<=>$a->[$sortby] || $a->[0]<=>$b->[0] } @expWindows;
+  
+    #PRINT COLUMN NAMES (HEADER) TO THE OUTPUT FILE
+    @header=("start","end","avg","genes");
+    $string = join(',', @header);
+    
+    my @windows= sort {$b->[$sortby]<=>$a->[$sortby] || $a->[0]<=>$b->[0] } @unsorted;
+    
+    
+    #Start cummulative array to begin for loop
+    my $lastLine=scalar @windows;
+    my @cumu=@{$windows[0]};
+    my $cstart=$cumu[0];
+    my $cend=$cumu[1];
+    my $cavg=$cumu[7];
+    my @cgenes=split(/ /,$cumu[11]);
+    
+    for (my $i=1;$i<$lastLine;$i++){
+        my @field=@{$windows[$i]};
+        my $fstart=$field[0];
+        my $fend=$field[1];
+        my $favg=$field[7];
+        my @fgenes=split(/ /,$field[11]);
+        #Either this window needs to be added or need to start new cummulative
+        
+        #Add field window (@field) if overlaps with cumulative window (@cumu)
+        if (($cend>=$fstart and $cstart<=$fstart) or ($cend>=$fend and $cstart<=$fend)){
+            #Keep cstart as it is but change the end coordinate
+            $cend=$fend;
+            #Append new genes
+            foreach my $gene(@fgenes){
+                #Don't know there are double quotes are coming from
+                $gene =~ s/"//g;
+                $gene =~ s/'//g;
+                push (@cgenes,$gene);
+            }
+        }
+        #need to output this cumm region with average calcs
+        else{
+            @cgenes=uniq(sort @cgenes);
+            my $allgenes=join('bum',@cgenes);
+            my @final=($cstart,$cend,$cavg,$allgenes);
+            push (@outarray,\@final);
+            #Set up current entry as new cumulative
+            @cumu=@field;
+            $cstart=$cumu[0];
+            $cend=$cumu[1];
+            $cavg=$cumu[7];
+            @cgenes=split (/ /,$cumu[11]);
+        }
+    }
 }
+
 #If sort by significance, most interesting regions are low pvals, so sort smallest to largest
 else{
-    @windows= sort {$a->[$sortby]<=>$b->[$sortby] || $a->[0]<=>$b->[0] } @expWindows;
+    
+    #PRINT COLUMN NAMES (HEADER) TO THE OUTPUT FILE
+    @header=("start","end","pvalue","genes");
+    $string = join(',', @header);
+    
+    my @windows= sort {$a->[$sortby]<=>$b->[$sortby] || $a->[0]<=>$b->[0] } @unsorted;
+    
+    #Start cummulative array to begin for loop
+    my $lastLine=scalar @windows;
+    my @cumu=@{$windows[0]};
+    my $cstart=$cumu[0];
+    my $cend=$cumu[1];
+    my $cpval=$cumu[5];
+    my @cgenes=split('',$cumu[11]);
+    
+    for (my $i=1;$i<$lastLine;$i++){
+        my @field=@{$windows[$i]};
+        my $fstart=$field[0];
+        my $fend=$field[1];
+        my $fpval=$field[5];
+        my @fgenes=split(' ',$field[11]);
+        #Either this window needs to be added or need to start new cummulative
+        
+        #Add field window (@field) if overlaps with cumulative window (@cumu)
+        if (($cend>=$fstart and $cstart<=$fstart) or ($cend>=$fend and $cstart<=$fend)){
+            #Keep cstart as it is but change the end coordinate
+            $cend=$fend;
+            #Append new genes
+            foreach my $gene(@fgenes){
+                if (! grep( /^$gene$/, @cgenes )){
+                    push (@cgenes,$gene);
+                }
+            }
+        }
+        #need to output this cumm region with average calcs
+        else{
+            @cgenes=uniq(sort @cgenes);
+            my $allgenes=join('',@cgenes);
+            my @final=($cstart,$cend,$cpval,$allgenes);
+            push (@outarray,\@final);
+            #Set up current entry as new cumulative
+            @cumu=@field;
+            $cstart=$cumu[0];
+            $cend=$cumu[1];
+            $cpval=$cumu[5];
+            @cgenes=split('',$cumu[11]);
+        }
+    }
 }
+
+#SORT first by whether or not there are annotated genes, then by fitness/pval
+
+@outarray= sort {$a->[3] cmp $b->[3] || $a->[2]<=>$b->[2] } @outarray;
 
 open my $gOut, '>', "$out" or die $!;
 
-#PRINT COLUMN NAMES (HEADER) TO THE OUTPUT FILE
-my $string = join(",", @header);
-print $gOut "$string\n"; 
+#OUTPUT to csv file
+print $gOut "$string\n";
 
-#Start cummulative array to begin for loop
-my $lastLine=scalar @windows;
-my @cumu=@{$windows[0]};
-my ($cstart,$cend,$cfit,$cmcount,$cins,$cta,$cratio,$cpval,$cdev)=@cumu;
-
-for (my $i=1;$i<$lastLine;$i++){
-	my @field=@{$windows[$i]};
-	my ($fstart,$fend,$ffit,$fmcount,$fins,$fta,$fratio,$fpval,$fdev)=@field;
-    
-    #Either this window needs to be added or need to start new cummulative
-	
-	#Add field window (@field) if overlaps with cumulative window (@cumu)
-	if (($cend>=$fstart and $cstart<=$fstart) or ($cend>=$fend and $cstart<=$fend)){ 
-		#Keep cstart as it is
-		$cend=$fend; #change the end coordinate
-		$sumFit+=($ffit*$fins);
-		$cins+=$fins;
-		$cmcount+=$fmcount;
-	}
-    #need to output this cumm region with average calcs
-	else{
-		$cratio=sprintf("$round",($cins/$cta));
-		if ($cins !=0){
-			$cfit=sprintf('%.2f',($sumFit/$cins)); #not accurate
-			}
-		else{
-			$cfit=0;
-			}
-		@cumu=($cstart,$cend,$cfit,$cmcount,$cins,$cta,$cratio,$cpval,$cdev);
-		print $gOut ($_,",") for @cumu;
-		print $gOut ("\n");
-		#Set up current entry as new cumulative
-		@cumu=@field;
-	    ($cstart,$cend,$cfit,$cmcount,$cins,$cta,$cratio,$cpval,$cdev)=@cumu;
-	    $sumFit=0;
-	    $sumRatio=0;
-	}
+foreach (@outarray){
+    print $gOut ($_,",") for @{$_};
+    print $gOut ("\n");
 }
+
 close $gOut;
+
