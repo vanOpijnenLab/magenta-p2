@@ -296,6 +296,7 @@ my $marker=0;
 my $totalInsert=0;
 my $totalWindows=0;
 
+open TEST,'>',"testQuotes.txt";
 
 #SUBROUTINE FOR EACH WINDOW CALCULATION
 sub OneWindow{
@@ -342,7 +343,9 @@ sub OneWindow{
             $gene=~ s/"//g;
             $gene=~ s/ //g;
             $gene=~ s/'//g;
-            push @allgenes,$gene;
+            if (!($gene =~ /^ *$/)){
+                push @allgenes,$gene;
+            }
             $Wsum+=$w;
             $Wcount++;
             if ($pos!=$lastPos){
@@ -374,7 +377,16 @@ sub OneWindow{
                 # push (@gs,$g);
                 #}
                 #my $wind_genes=join(' ',@gs);
-                my $wind_genes=join(' ',@allgenes);
+                
+                
+                @allgenes= uniq (@allgenes);
+                my @sortedGenes = sort { lc($a) cmp lc($b) } @allgenes;
+                foreach (@sortedGenes){
+                    print TEST "Array: ",$_,"\t";
+                }
+                print TEST "\n";
+                my $wind_genes=join(" ",@sortedGenes);
+                print TEST $wind_genes,"\n";
                 my @window=($Wstart,$Wend,$Wcount,$insertion,$wind_genes,$average,$variance,$stdev,$stderr);
                 return (\@window);
             }
@@ -387,6 +399,7 @@ sub OneWindow{
         }
     }
 }
+
 
 
 print "Start calculation: ",get_time(),"\n";
@@ -408,6 +421,8 @@ print "End calculation: ",get_time(),"\n";
 
 my $avgInsert=$totalInsert/$totalWindows;
 print "Average number of insertions for $size base pair windows: $avgInsert\n";
+
+close TEST;
 
 #ESSENTIALS: Counting the number of TA sites in the genome and whether an insertion occurred there or not
 
@@ -629,30 +644,29 @@ foreach (@newWindows){
 }
 @newWindows= sort {$b->[$sortby]<=>$a->[$sortby]} @expWindows;
 
-#-------------------------------------------Essentials OUTPUTS--------------------------------------
 
 #MAKE OUTPUT CSV FILE WITH ESSENTIAL WINDOW CALCULATIONS
 
-    print "Start csv ouput file creation: ",get_time(),"\n";
-    my $csvBIG = Text::CSV->new({ binary => 1, auto_diag => 1, eol => "\n"}) or die "Cannot use CSV: " . Text::CSV->error_diag();  
-    # open in append mode
-    
-	open (my $FH8, ">$outdir/slidingWindows.csv");
+print "Start csv ouput file creation: ",get_time(),"\n";
+
+open CSV, '>', "$outdir/slidingWindows.csv" or die "Cannot open $outdir/slidingWindows.csv";
 	
-    $csvBIG->print($FH8, [ "start", "end","mutants","insertions","TA_sites","ratio","p-value","average", "variance","stdev","stderr","genes","fit-mean"]); #header
-    foreach my $winLine(@newWindows){
-        $csvBIG->print($FH8,$winLine);
-    }
-    close $FH8;
-    print "End csv ouput file creation: ",get_time(),"\n\n";
+my @csvHeader= ("start", "end","mutants","insertions","TA_sites","ratio","p-value","average", "variance","stdev","stderr","genes","fit-mean");
+my $header=join(",",@csvHeader);
+print CSV $header,"\n";
+foreach my $winLine(@newWindows){
+    my $string=join(",",@{$winLine});
+    print CSV $string, "\n";
+}
+close CSV;
+print "End csv ouput file creation: ",get_time(),"\n\n";
 
-#printwig();
 my $in = Bio::SeqIO->new(-file=>$ref_genome);
-   my $refseq = $in->next_seq;
-    my $refname = $refseq->id;
+my $refseq = $in->next_seq;
+my $refname = $refseq->id;
 
-#MAKE essentials WIG FILE---->later make BW--->IGV   #####
- sub printwig{
+#MAKE essentials WIG FILE---->later make BW--->IGV
+sub printwig{
     print "Start wig file creation: ",get_time(),"\n";
     my $in = Bio::SeqIO->new(-file=>$ref_genome);
     my $refseq = $in->next_seq;

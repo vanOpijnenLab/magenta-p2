@@ -159,7 +159,7 @@ if ($fit){
         #need to output this cumm region with average calcs
         else{
             @cgenes=uniq(sort @cgenes);
-            my $allgenes=join('bum',@cgenes);
+            my $allgenes=join(" ",@cgenes);
             my @final=($cstart,$cend,$cavg,$allgenes);
             push (@outarray,\@final);
             #Set up current entry as new cumulative

@@ -79,7 +79,7 @@ GetOptions(
 'log' => \$log,
 'usage' => \$h,
 'tan'=>\$tan,
-'custom:s'=>\$custom,
+'c:s'=>\$custom,
 'indir:s'=>\$indir,
 'label'=>\$label,
 );
