@@ -62,7 +62,7 @@ sub print_usage() {
 
 
 #ASSIGN INPUTS TO VARIABLES
-our ($round,$random,$txt,$txtg,$cutoff,$wig,$infile, $csv, $step, $h, $outdir,$size,$fasta, $log, $ref_genome,$tan,$indir,$inc,$sortby,$weight_ceiling,$weight,$custom);
+our ($round,$random,$txt,$txtg,$cutoff,$wig,$infile, $csv, $step, $h, $outdir,$size,$fasta, $log, $ref_genome,$tan,$indir,$inc,$sortby,$weight_ceiling,$weight,$custom,$wc);
 GetOptions(
 'wig:s' => \$wig,
 'ref:s' => \$ref_genome,
@@ -104,7 +104,7 @@ if (!$round){$round='%.3f';}
 if (!$outdir){$outdir="newout";}
 if (!$inc){$inc=20;}
 if (!$wc){$weight_ceiling=50;}
-if (!$cutoff)
+if (!$cutoff){$cutoff=15;}
 mkpath($outdir);
 
 if ($log){
@@ -517,8 +517,8 @@ else{ #if not custom list
 }
 
 
-my $avgInsert=$totalInsert/$totalWindows;
-print "Average number of insertions for $size base pair windows: $avgInsert\n";
+#my $avgInsert=$totalInsert/$totalWindows;
+#print "Average number of insertions for $size base pair windows: $avgInsert\n";
 
 close TEST;
 
@@ -932,10 +932,7 @@ if ($txtg or $txt){
 
     #print "\nTo make a BigBed file from this text file, rename file to .bed and use USCS program bedToBigBed in terminal \n\t\n";
     
-
-
 WONKYCODE
-
 
 
 

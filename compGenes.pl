@@ -93,6 +93,8 @@ if (!$round){$round='%.4f'}
 
 my %all;
 my @header;
+
+#OPEN TWO COMPARISON FILES, ONE PER LOOP
 for (my $i=0; $i<2; $i++){
     print "File #",$i+1,"\t";
     my $file=$files[$i];
