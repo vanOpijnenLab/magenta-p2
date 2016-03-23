@@ -186,7 +186,7 @@ for (my $i=0; $i<$num; $i++){   #Read files from ARGV
             my $c2 = $line[3];
             my $avg = ($c1+$c2)/2;
             if ($avg > $cutoff) {
-                my @select=($line[0],$line[12]);
+                my @select=($line[0],$line[12],$line[9]);
                 my $select=\@select;
                 push(@unsorted,$select);
                 push(@insertPos,$line[0]);   #keep track of actual insertion site position
@@ -225,9 +225,12 @@ sub OneWindow{
     my $Wsum=0;
     my $lastPos=0;
     my $i;
+    my @allgenes=();
+
     
     for ($i=$marker;$i<$rowCount;$i++){
         my @fields=@{$sorted[$i]};
+        my $gene=$fields[2];
         if ($fields[0]<$Wstart){  #if deleted, error shows up
             next;
         }
@@ -237,6 +240,14 @@ sub OneWindow{
             }
             $Wsum+=$fields[1];
             $Wcount++;
+            
+            $gene=~ s/"//g;
+            $gene=~ s/ //g;
+            $gene=~ s/'//g;
+            if (!($gene =~ /^ *$/)){
+                push @allgenes,$gene;
+            }
+            
             if ($fields[0]!=$lastPos){
                 $insertion+=1;
                 $lastPos=$fields[0];
@@ -250,8 +261,17 @@ sub OneWindow{
             else{
                 $Wavg=0;
             }
+            
+            @allgenes= uniq (@allgenes);
+			my @sortedGenes = sort { lc($a) cmp lc($b) } @allgenes;
+			#foreach (@sortedGenes){
+			#	print TEST "Array: ",$_,"\t";
+			#}
+			#print TEST "\n";
+			my $wind_genes=join(" ",@sortedGenes);
+			#print TEST $wind_genes,"\n";		
        
-            my @window=($Wstart,$Wend,$Wavg,$Wcount,$insertion);
+            my @window=($Wstart,$Wend,$Wavg,$Wcount,$insertion,$wind_genes);
     
             $totalWindows++;
             $totalInsert+=$insertion;

@@ -11,6 +11,7 @@
 #cpanm Getopt::Long Data::Random List::Util File::Path File::Basename
 #cpanm List::BinarySearch List::BinarySearch::XS List::MoreUtils 
 
+#Margaret:/Volumes/MaggieBack/workspace/9-daptomycin/tester->perl ../../Blueberries/slidingWindow.pl -fasta ../../0-genome/tigr4_genome.fasta -ref ../../0-genome/NC_003028b2.gbk --c grouped_T4D.csv -indir ../T4Dapto/ -outdir cust4_T4D/
 
 use strict;
 use Getopt::Long;
@@ -55,12 +56,13 @@ sub print_usage() {
     print "--txtg\t If consecutive windows have the same value, then group them into one window. Ouput into txt file or bed file.\n";
     print "--ref\tThe name of the reference genome file, in GenBank format. Needed for wig and txt file creation\n";
     print "--sort\tIndex of column to sort by\n";
+    print "--c\tComma separated list of start and end coordinates for custom windows\n";
 
 }
 
 
 #ASSIGN INPUTS TO VARIABLES
-our ($round,$random,$txt,$txtg,$cutoff,$wig,$infile, $csv, $step, $h, $outdir,$size,$fasta, $log, $ref_genome,$tan,$indir,$inc,$sortby,$weight_ceiling,$weight);
+our ($round,$random,$txt,$txtg,$cutoff,$wig,$infile, $csv, $step, $h, $outdir,$size,$fasta, $log, $ref_genome,$tan,$indir,$inc,$sortby,$weight_ceiling,$weight,$custom);
 GetOptions(
 'wig:s' => \$wig,
 'ref:s' => \$ref_genome,
@@ -83,6 +85,7 @@ GetOptions(
 'sort:i'=>\$sortby,
 'wc:i'=>\$weight_ceiling,
 'w'=>\$weight,
+'c:s'=>\$custom,
 );
 
 sub get_time() {
@@ -100,6 +103,8 @@ if ($h){
 if (!$round){$round='%.3f';}
 if (!$outdir){$outdir="newout";}
 if (!$inc){$inc=20;}
+if (!$wc){$weight_ceiling=50;}
+if (!$cutoff)
 mkpath($outdir);
 
 if ($log){
@@ -160,6 +165,13 @@ sub average {
     
     return ($average, $variance, $sd, $se);
     
+}
+
+sub cleaner{
+    my $line=$_[0];
+    chomp($line);
+    $line =~ s/\x0d{0,1}\x0a{0,1}\Z//s;
+    return $line;
 }
 
 # Takes two parameters, both hashrefs to lists.
@@ -311,21 +323,19 @@ sub OneWindow{
     
     for ($i=$marker;$i<$rowCount;$i++){
         my @fields=@{$sorted[$i]};
-
-        if ($fields[0]<$Wstart){  #if deleted, error shows up
-            next;
-        }
         my $pos=$fields[0];
         my $w=$fields[1];         #fitness value for single insertion
         my $avgCount=$fields[2];
         my $gene=$fields[3];
-
+        
+        if ($pos<$Wstart){  #if deleted, error shows up
+            next;
+        }
         if ($pos<=$Wend){
             if ($pos<($Wstart+$step)){
                 $marker++;
             }
             my @empty;
-            
             if (!$wind_summary{$Wstart}) {
                 $wind_summary{$Wstart}{w} = [@empty];
                 $wind_summary{$Wstart}{s} = [@empty];
@@ -335,15 +345,12 @@ sub OneWindow{
             $wind_summary{$Wstart}{w} = [@{$wind_summary{$Wstart}{w}}, $w];
             # Hash of counts used to generate those fitness scores.
             $wind_summary{$Wstart}{s} = [@{$wind_summary{$Wstart}{s}}, $avgCount];
-            # Hash of genes for whole window
-            #if (! grep( /^$gene$/, @{$wind_summary{$Wstart}{g}} )){
-            #print $gene,"\n";
-            #$wind_summary{$Wstart}{g} = [@{$wind_summary{$Wstart}{g}}, $gene];
-            #}
-            $gene=~ s/"//g;
-            $gene=~ s/ //g;
-            $gene=~ s/'//g;
+            
+            
             if (!($gene =~ /^ *$/)){
+                $gene=~ s/"//g;
+                $gene=~ s/ //g;
+                $gene=~ s/'//g;
                 push @allgenes,$gene;
             }
             $Wsum+=$w;
@@ -360,7 +367,7 @@ sub OneWindow{
                 $totalInsert+=$insertion;
                 
                 my ($average, $variance, $stdev, $stderr);
-        
+                
                 if ($num <=1 ) {
                     ($average, $variance, $stdev, $stderr)=(0.10,0.10,"X","X");
                 }
@@ -372,52 +379,143 @@ sub OneWindow{
                         ($average, $variance, $stdev, $stderr)= &weighted_average($wind_summary{$Wstart}{w},$wind_summary{$Wstart}{s});
                     }
                 }
-                #my @gs;
-                #foreach my $g(@{$wind_summary{$Wstart}{g}}){
-                # push (@gs,$g);
-                #}
-                #my $wind_genes=join(' ',@gs);
-                
                 
                 @allgenes= uniq (@allgenes);
                 my @sortedGenes = sort { lc($a) cmp lc($b) } @allgenes;
-                foreach (@sortedGenes){
-                    print TEST "Array: ",$_,"\t";
+                my $wind_genes=join(" ",@sortedGenes);
+                my @window=($Wstart,$Wend,$Wcount,$insertion,$wind_genes,$average,$variance,$stdev,$stderr);
+                return (\@window);
+            }
+            
+            else{ #Even if there were no insertions, still want window in file for consistent start/end
+                my @window=($Wstart,$Wend,$Wcount,$insertion," ","X","X","X","X");
+                return (\@window);
+            }  	#Because count=0 (i.e. there were no insertion mutants in that window)
+        }
+    }
+}
+
+sub customWindow{
+
+    my $Wstart=shift @_;
+    my $Wend=shift@_;
+    my $Wavg=0;
+    my $Wcount=0;
+    my $insertion=0;
+    my $Wsum=0;
+    my $lastPos=0;
+    my @allgenes=();
+    my $i;
+    
+    
+    for ($i=$marker;$i<$rowCount;$i++){
+        my @fields=@{$sorted[$i]};
+        my $pos=$fields[0];
+        my $w=$fields[1];         #fitness value for single insertion
+        my $avgCount=$fields[2];
+        my $gene=$fields[3];
+
+
+        
+        if ($pos<$Wstart){  #if deleted, error shows up
+            next;
+        }
+        if ($pos<=$Wend){
+            my @empty;
+            if (!$wind_summary{$Wstart}) {
+                $wind_summary{$Wstart}{w} = [@empty];
+                $wind_summary{$Wstart}{s} = [@empty];
+                $wind_summary{$Wstart}{g} = [@empty];
+            }
+            # Hash of fitness scores
+            $wind_summary{$Wstart}{w} = [@{$wind_summary{$Wstart}{w}}, $w];
+            # Hash of counts used to generate those fitness scores.
+            $wind_summary{$Wstart}{s} = [@{$wind_summary{$Wstart}{s}}, $avgCount];
+
+            if (!($gene =~ /^ *$/)){
+                $gene=~ s/"//g;
+                $gene=~ s/ //g;
+                $gene=~ s/'//g;
+                push @allgenes,$gene;
+            }
+            $Wsum+=$w;
+            $Wcount++;
+            if ($pos!=$lastPos){
+                $insertion+=1;
+                $lastPos=$pos;
+            }
+        }
+        
+        #if ($fields[0]>$Wend){         #if finished with that window, then:
+        else{
+            if ($Wcount>0){
+                $totalWindows++;
+                $totalInsert+=$insertion;
+                
+                my ($average, $variance, $stdev, $stderr);
+                
+                if ($num <=1 ) {
+                    ($average, $variance, $stdev, $stderr)=(0.10,0.10,"X","X");
                 }
-                print TEST "\n";
+                else{
+                    if (!$weight) {
+                        ($average, $variance, $stdev, $stderr) = &average($wind_summary{$Wstart}{w});
+                    }
+                    else {
+                        ($average, $variance, $stdev, $stderr)= &weighted_average($wind_summary{$Wstart}{w},$wind_summary{$Wstart}{s});
+                    }
+                }
+                
+                @allgenes= uniq (@allgenes);
+                my @sortedGenes = sort { lc($a) cmp lc($b) } @allgenes;
                 my $wind_genes=join(" ",@sortedGenes);
                 print TEST $wind_genes,"\n";
                 my @window=($Wstart,$Wend,$Wcount,$insertion,$wind_genes,$average,$variance,$stdev,$stderr);
                 return (\@window);
             }
- 
+            
             else{ #Even if there were no insertions, still want window in file for consistent start/end
                 my @window=($Wstart,$Wend,$Wcount,$insertion," ","X","X","X","X");
                 return (\@window);
             }  	#Because count=0 (i.e. there were no insertion mutants in that window)
-            
         }
     }
 }
-
-
 
 print "Start calculation: ",get_time(),"\n";
 my $start=1;
 my $end=$size+1;
 my $windowNum=0;
-my @allWindows=(); #will be a 2D array containing all window info to be written into output file
+my @allWindows; #will be a 2D array containing all window info to be written into output file
 
-#WHILE LOOP TO CALL THE ONE WINDOW SUBROUTINE FOR CALCULATIONS===INCREMENTS START AND END VALUES OF THE WINDOW
-while ($end<=$last-$size){  #100,000bp-->9,950 windows--> only 8500 windows in csv because 0
-    my($window)=OneWindow($start,$end);
-    #if ($window!=-1){
-        push (@allWindows,$window);
-    #}
-    $start=$start+$step;
-    $end=$end+$step;
+
+
+#IF A CUSTOM LIST OF START/END COORDINATES IS GIVEN THEN CREATE WINDOWS USING IT
+if ($custom){
+    open (CUST, '<', $custom);
+    my $dummy=<CUST>;
+    while(my $line=<CUST>){ 
+        $line=cleaner($line);
+        my @cwind=split(",",$line);
+        my $start=$cwind[0];
+        my $end=$cwind[1];
+        my $window=customWindow($start,$end);
+        push @allWindows,$window;
+    }
+    close CUST;
 }
-print "End calculation: ",get_time(),"\n";
+
+else{ #if not custom list
+    #WHILE LOOP TO CALL THE ONE WINDOW SUBROUTINE FOR CALCULATIONS===INCREMENTS START AND END VALUES OF THE WINDOW
+    while ($end<=$last-$size){  #100,000bp-->9,950 windows--> only 8500 windows in csv because 0
+        my($window)=OneWindow($start,$end);
+        push (@allWindows,$window);
+        $start=$start+$step;
+        $end=$end+$step;
+    }
+    print "End calculation: ",get_time(),"\n";
+}
+
 
 my $avgInsert=$totalInsert/$totalWindows;
 print "Average number of insertions for $size base pair windows: $avgInsert\n";
@@ -513,6 +611,9 @@ while (($genPos != -1) and ($pos!=scalar @insertPos)) { #as long as the TA site 
 my $N=10000;
 
 sub mean {
+    if (scalar @_ ==0){
+        return 0;
+    }
 	return sum(@_)/@_;
 }
 sub stdev{
