@@ -7,7 +7,8 @@
 use Data::Dumper;
 use strict;
 use Getopt::Long;
-use warnings;
+no warnings;
+#use warnings;
 use diagnostics;
 use File::Path;
 use File::Basename;

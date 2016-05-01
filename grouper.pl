@@ -40,14 +40,14 @@ sub print_usage() {
 # 0:start,1:end,2:fitness,3:mutant_count,4:insertions,5:TA_sites,6:ratio,7:p-value
 
 #ASSIGN INPUTS TO VARIABLES
-our ($h,$out,$sortby,$round,$sig,$fit);
+our ($h,$out,$sortby,$round,$sig,$key);
 GetOptions(
 'o:s' =>\$out,
 'h' => \$h,
 's:i' => \$sortby,
 'r:i'=> \$round,
 'sig'=>\$sig,
-'fit'=>\$fit,
+'key'=>\$key,
 
 );
 
@@ -60,16 +60,7 @@ if ($h){
 #Assign defaults
 if (!$out) {$out="groupedWindows.csv"}
 if (!$round){$round='%.2f'}
-#if sortby was not specified then use -fit flag or default by significance
-if (!$sortby){
-    if ($fit){
-        $sortby=7;
-    }
-    else{
-        $sortby=6;
-    }
-}
-
+if (!$sortby){$sortby=0}
 sub get_time() {
     my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime(time);
     return "$hour:$min:$sec";
@@ -96,17 +87,18 @@ my @header=split(',',$line);
 while (my $entry = <DATA>) {
 	$entry=cleaner($entry);
 	my @fields=split(',',$entry);
-    if ($fit){
-        my $bool=looks_like_number($fields[7]);
-        if ($bool and ($fields[7] !=0)){
-            $fields[7]=sprintf($round,$fields[7]);
-            push (@unsorted,\@fields);
-        }
+	my $start=$fields[0];
+    #if ($order){
+        #my $bool=looks_like_number($fields[0]);
+        #if ($bool and ($fields[7] !=0)){
+            #$fields[7]=sprintf($round,$fields[7]);
+        #push (@unsorted,\@fields);
+        #}
         
-    }
-    else{
+    #}
+   # else{
         push (@unsorted,\@fields);
-    }
+    #}
 }
 close DATA;
 
@@ -119,7 +111,7 @@ my $string;
 #If sort by fitness, most interesting regions have high mean differece so sort largest to smallest
 my @outarray;
 
-if ($fit){
+if ($order){
   
     #PRINT COLUMN NAMES (HEADER) TO THE OUTPUT FILE
     @header=("start","end","avg","genes");
@@ -141,34 +133,37 @@ if ($fit){
         my $fstart=$field[0];
         my $fend=$field[1];
         my $favg=$field[7];
+        my $gene=$field[12];
         my @fgenes=split(/ /,$field[11]);
         #Either this window needs to be added or need to start new cummulative
         
         #Add field window (@field) if overlaps with cumulative window (@cumu)
-        if (($cend>=$fstart and $cstart<=$fstart) or ($cend>=$fend and $cstart<=$fend)){
-            #Keep cstart as it is but change the end coordinate
-            $cend=$fend;
-            #Append new genes
-            foreach my $gene(@fgenes){
-                #Don't know there are double quotes are coming from
-                $gene =~ s/"//g;
-                $gene =~ s/'//g;
-                push (@cgenes,$gene);
-            }
-        }
-        #need to output this cumm region with average calcs
-        else{
-            @cgenes=uniq(sort @cgenes);
-            my $allgenes=join(" ",@cgenes);
-            my @final=($cstart,$cend,$cavg,$allgenes);
-            push (@outarray,\@final);
-            #Set up current entry as new cumulative
-            @cumu=@field;
-            $cstart=$cumu[0];
-            $cend=$cumu[1];
-            $cavg=$cumu[7];
-            @cgenes=split (/ /,$cumu[11]);
-        }
+    	if ($gene eq "intergenic"){
+			if (($cend>=$fstart and $cstart<=$fstart) or ($cend>=$fend and $cstart<=$fend)){
+				#Keep cstart as it is but change the end coordinate
+				$cend=$fend;
+				#Append new genes
+				foreach my $gene(@fgenes){
+					#Don't know there are double quotes are coming from
+					$gene =~ s/"//g;
+					$gene =~ s/'//g;
+					push (@cgenes,$gene);
+				}
+			}
+			#need to output this cumm region with average calcs
+			else{
+				@cgenes=uniq(sort @cgenes);
+				my $allgenes=join(" ",@cgenes);
+				my @final=($cstart,$cend,$cavg,$allgenes);
+				push (@outarray,\@final);
+				#Set up current entry as new cumulative
+				@cumu=@field;
+				$cstart=$cumu[0];
+				$cend=$cumu[1];
+				$cavg=$cumu[7];
+				@cgenes=split (/ /,$cumu[11]);
+			}
+    	}
     }
 }
 

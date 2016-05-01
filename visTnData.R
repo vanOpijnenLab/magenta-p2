@@ -105,10 +105,10 @@ getTracks2<-function(fromCoord,toCoord,x,y){
   library(Biostrings)
   library(Gviz)
   
-  genomeFile="NC_003028.fa"
-  geneFile="tigr4_genes.txt"
+  genomeFile="9-daptomycin/0-genome/19F_012469.fasta"
+  geneFile="9-daptomycin/0-genome/19F_genes.txt .txt"
   #singleFitFile="singleFit_tigr4_SDDM.txt"
-  singleFitFile="singleFit_tigr4.txt"
+  singleFitFile="9-daptomycin/singleFit/19FDapto_singleFit.txt "
   
   #genomeFile="NC_012469.fa"
   #geneFile="19F_genes.txt"
