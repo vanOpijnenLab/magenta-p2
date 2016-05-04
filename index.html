@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>MAGenTA by mmlantonio</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/github-light.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1 class="header">MAGenTA</h1>
+        <p class="header">a bioinformatics pipeline for Tn-Seq analysis of microbial pathogens</p>
+
+        <ul>
+          <li class="download"><a class="buttons" href="https://github.com/mmlantonio/Blueberries/zipball/master">Download ZIP</a></li>
+          <li class="download"><a class="buttons" href="https://github.com/mmlantonio/Blueberries/tarball/master">Download TAR</a></li>
+          <li><a class="buttons github" href="https://github.com/mmlantonio/Blueberries">View On GitHub</a></li>
+        </ul>
+
+        <p class="header">This project is maintained by <a class="header name" href="https://github.com/mmlantonio">mmlantonio</a></p>
+
+
+      </header>
+      <section>
+        <h1>
+<a id="welcome-to-the-magenta-project-website" class="anchor" href="#welcome-to-the-magenta-project-website" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Welcome to the MAGenTA project website</h1>
+
+<p>To address the need for (1) an analysis method based on exact fitness contribution of a genomic region and (2) a holistic pipeline that incorporates this novel method with the essentiality test, we developed MAGenTA (Microbial Assessment by Genome-wide Tn-seq Analysis), a bioinformatics pipeline for Tn-seq data analysis. In addition to developing novel methods that employ the fitness assessment, we automated comparative analyses that were previously performed manually and added the essentiality test resulting in a streamlined, uniform pipeline. </p>
+
+<p>In detail, MAGenTA enables analyses to: </p>
+
+<p>(a) calculate fitness across a sliding window, enabling identification of protein domains and non-coding regions
+(b) assess gene essentiality in an organism based on transposon insertion representation
+(c) perform bacterial strain comparison to assess how the same gene can have different effects in a strain-dependent manner
+(d) perform comparative analyses for gene and regional differences across experiments
+(e) visualize multi-feature tracks for a given genomic region</p>
+
+<h1>
+<a id="descriptions-of-magenta-tools" class="anchor" href="#descriptions-of-magenta-tools" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Descriptions of MAGenTA Tools</h1>
+
+<p><b> SlidingWindow.pl</b></p>
+
+<p>Description: scans the genome with a fixed size sliding window, calculating a) organismal fitness and b) essentiality based on insertion representation calculations for the genomic region included in the window<br>
+  Usage: Input .csv file(s) (outputted from calc_fitness.pl) with reference genome. Outputs following files into a single directory: </p>
+
+<ul>
+<li>
+<b>unmatched.txt</b> Genome indexes of insertion sites from Tn-Seq data that could not be matched with a TA site in the given genome at that exact index</li>
+<li>
+<b>allTAsites.txt</b> All TA sites that occur in the genome and whether an insertion occurred there</li>
+<li>
+<b>nullDist.txt</b> Statistics (size, mean, variance, etc) on null distribution libraries used in the essentials analysis</li>
+<li>
+<b>essentialWindows.csv</b> All information about each window (including fitness and p-value for essentiality)</li>
+<li>
+<b>essentialWindows.wig</b> Only p-values for each window in wig file for Integrated Genome Viewer (IGV)</li>
+<li>
+<b>fitWindows.csv</b> Only fitness-related information for each window</li>
+<li>
+<b>fitWindows.wig</b> Only fitness for each window in wig file for Integrated Genome Viewer (IGV)</li>
+<li>
+<b>groupedWindows.txt</b> Grouped consecutive windows with same fitness value </li>
+<li>
+<b>log.txt</b> If the --log option was selected, all standard output goes here</li>
+</ul>
+
+<p><b>merge.pl</b></p>
+
+<p>Description: Merges and sorts multiple comma-separated (.csv) files<br>
+  Usage: Input .csv files, outputs merge sorted file</p>
+
+<p><b>countTA.pl</b></p>
+
+<p>Description: Counts number of TA sites in the genome<br>
+  Usage: input genome, outputs number of TA sites</p>
+
+<p><b>customWindow.pl</b></p>
+
+<p>Description: Given a tab delimited text file of genome region name, start position, and end position, customWindow.pl 
+    outputs Tn-Seq stats for those regions: # of mutants, # of unique insertions, # of TA sites, ratio of insertions
+    to TA sites, aggregate fitness value, p-value for essentiality <br>
+  Usage: input GBK file, fasta file for genome sequence, results files, custom region file  </p>
+
+<p><b>getCoordsGBK.py</b></p>
+
+<p>Description: Get gene names and coordinates from a GBK file.<br> 
+    Output file can be inputted into Gviz as an annotation track for visualization.<br>
+  Usage: python getCoordsGBK.py  </p>
+
+<p><b>singleFit.pl</b></p>
+
+<p>Description: Gets a single fitness value for each insertion based on multiple mutants (lanes)<br>
+  Usage: perl ../singleFit.pl </p>
+      </section>
+      <footer>
+        <p><small>Hosted on <a href="https://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+		
+  </body>
+</html>
