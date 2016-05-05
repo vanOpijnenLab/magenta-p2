@@ -266,9 +266,10 @@ print "$inscov%\tGenome coverage by insertions (validInsertions/genomeSize)\n";
 print "$tacov%\tGenome coverage by TA sites (TAsites/genomeSize)\n";
 print "$lg_dist_ta\tLargest distance between TA sites\n";
 print "$lg_dist_ins\tLargest distance between insertions\n";
-
-
 print "\n\nOpen Reading Frames\n\n";
+
+#Store everything to be printed in array
+my @table;
 
 #Find open reading frames from fasta file
 local $_  = $fasta;
@@ -296,7 +297,7 @@ while ( /ATG/g ) {
 }
 
 print "\nORFs based on Fasta sequence and start (ATG) and end (TAA,TAG,TGA) codons\n";
-print "$minSize\tSet minimum size for an ORF\n";
+push (@table,["Set minimum size for an ORF",$minSize]);
 print "$orfCount\tTotal number of ORFs found\n";
 my ($minORF, $maxORF) = minmax @orfSize;
 print "$minORF\tSmallest ORF\n";

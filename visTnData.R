@@ -1,15 +1,24 @@
+#PLOT TRACKS
+getTracksNew<-function(fromCoord,toCoord,x1,x2){
+  #Fill in values if surrounding region coordinates weren't specified
+  if (missing(x1))x1=0
+  if (missing(x2))x2=0
+  
+  #HIGHLIGHT TRACK: encompasses several tracks
+  ht1 <- HighlightTrack(trackList = list(dataTrack1,dataTrack2), start =fromCoord,end= toCoord,chromosome = "genome")
+  
+  plotTracks(list(gTrack,sTrack,anTrack,ht1),chromosome="genome",background.title="darkblue",fontsize=17,from=fromCoord-x1,to=toCoord+x2,main="Region of Interest")
+  
+}
+
 getTracks<-function(fromCoord,toCoord,x,y){
   #Load libraries
   library(seqinr)
   library(Biostrings)
   library(Gviz)
   
-  #genomeFile="NC_003028.fa"
-  #geneFile="tigr4_genes.txt"
-  #singleFitFile="singleFit_tigr4_SDDM.txt"
-  
-  genomeFile="NC_012469.fa"
-  geneFile="19F_genes.txt"
+  genomeFile="NC_012469.fasta"
+  geneFile="19F_01genes.txt"
   singleFitFile="singleFit_19F_SDDM.txt"
   
   
@@ -162,7 +171,7 @@ getTracks2<-function(fromCoord,toCoord,x,y){
                             background.title="transparent",col="transparent",name="Fitness Value")
   
   #Keep track pollution low:
-  print(paste0("# of insertions in the window: ", count))
+  #print(paste0("# of insertions in the window: ", count))
   if (count>15 || (toCoord-fromCoord>10000)){
     ht1 <- HighlightTrack(trackList = list(aggTrack,avgTrack), start =fromCoord,end= toCoord,chromosome = "genome")
   }
@@ -182,6 +191,5 @@ getTracks2<-function(fromCoord,toCoord,x,y){
   
   confirm=paste0("Tracks plotted for genomic coordinates ",fromCoord," to ",toCoord," with a window (",fromCoord-x,",",toCoord+y,")")
   return(confirm)
-  
   
 }
