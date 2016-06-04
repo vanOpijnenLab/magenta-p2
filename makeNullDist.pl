@@ -209,7 +209,7 @@ my %distLibrary;
 
 for (my $sitez=1; $sitez<=$max;$sitez++){
     #print "In the first for loop to make a null distribution\n";
-    my @unsorted;
+    my @unsorted=();
     my $count=0;
     my $sum=0;
     
@@ -247,9 +247,8 @@ close DIST;
 open LIB,'>',"nullDistLibrary.csv";
 foreach my $key(keys %distLibrary){
     print LIB $key,",";
-    my @value=@{$distLibrary{$key}};
-    print scalar @value,"\t";
-    print LIB join( ',', @value ),"\n";
+    my @values=@{$distLibrary{$key}};
+    print LIB join( ',', @values ),"\n";
 }
 close LIB;
 
