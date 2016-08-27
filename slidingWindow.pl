@@ -892,47 +892,11 @@ if ($txtg or $txt){
 }
 #MAKING A REGULAR TEXT FILE fields: [chrom,start,end,fitness,count]
 
-    print "Start text file creation time: ",get_time(),"\n";
-    open my $TXT, '>', "$outdir/fitWindows.txt" or die $!;
-    print $TXT ("start","end","W","mutant_count","insertion_count\n");
-    print $TXT (join("\t",@$_),"\n") for @allWindows;
-    close $TXT;
-    print "End text file creation: ",get_time(),"\n\n";
-
-
-<<'WONKYCODE';
-
-#MAKING A TEXT FILE OF GROUPED CONSECUTIVE WINDOWS WITH SAME FITNESS
-
-
-    print "Start grouped txt file creation time: ",get_time(),"\n";
-    open my $TXTg, '>', "$outdir/groupedWindows.txt" or die $!;
-    for my $line(@allWindows){
-        my @field=@$line;
-        if (!@cummulative){
-            @cummulative=@field;
-            if ($cummulative[4]>1000){$cummulative[4]=1000}
-        }
-        else{
-            if ($cummulative[3]==$field[3]){
-                $cummulative[2]=$field[2];
-                if ($cummulative[4]<=1000-$field[4]){
-                    $cummulative[4]+=$field[4];
-                }
-            }
-            else{
-                print $TXTg ($_,"\t") for @cummulative;
-                print $TXTg ("\n");
-                @cummulative=@field;
-            }
-        }
-    }
-    close $TXTg;
-    print "End grouped text file creation: ",get_time(),"\n\n";
-
-    #print "\nTo make a BigBed file from this text file, rename file to .bed and use USCS program bedToBigBed in terminal \n\t\n";
-    
-WONKYCODE
-
+print "Start text file creation time: ",get_time(),"\n";
+open my $TXT, '>', "$outdir/fitWindows.txt" or die $!;
+print $TXT ("start","end","W","mutant_count","insertion_count\n");
+print $TXT (join("\t",@$_),"\n") for @allWindows;
+close $TXT;
+print "End text file creation: ",get_time(),"\n\n";
 
 
