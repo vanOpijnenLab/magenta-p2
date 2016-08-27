@@ -57,7 +57,7 @@ sub print_usage() {
     print " -x\tCutoff: Don't include fitness scores with average counts 
     		(T1+T2)/2 < x\n";
     print "   \t(default: 10)\n";
-	print " -b\tBlanks: Exclude -b % of blank fitness scores 
+	print " -b\tBlanks: Exclude -b % of blank fitness scores (write as decimal)
 			(where c2 = 0)\n";
     print "   \t(default: 0 = 0%)\n";
     print " -w\tUse weighted algorithm to calculate averages, variance, sd, se\n";
@@ -79,7 +79,7 @@ my $library=$options{n};
 my $out = $options{o} || "geneAggOutput.csv";
 my $marked = $options{m};
 my $cutoff = $options{x} || 10;
-my $blank_pc = $options{b} || 0;
+my $blank_pc = $options{b} || 1;
 my $weight_ceiling = $options{l} || 50;
 my $round=$options{r} || '%.3f';
 my $print=$options {p};
@@ -96,13 +96,14 @@ if ($print || !$ref || !$indir || !$fastaFile || !$library ) {
 
 #Print out all input and output files. Helps with easy troubleshooting.
 print "\n*** Input and output files***\n";
-print "Input directory: $indir\n";
-print "Outfile: $out\n";
-print "Reference genome: $ref\n";
-print "Fasta file: $fastaFile\n";
-print "Distribution Library: $library\n";
-print "Cutoff: $cutoff\n";
-print "Percentage of blanks to remove: ",$blank_pc,"%\n";
+print "Input directory: \t\t$indir\n";
+print "Outfile: \t\t$out\n";
+print "Reference genome: \t\t$ref\n";
+print "Fasta file: \t\t$fastaFile\n";
+print "Distribution Library: \t\t$library\n";
+print "Cutoff: \t\t$cutoff\n";
+my $percent=$blank_pc*100;
+print "Percentage of blanks to remove: \t\t",$percent,"%\n";
 
 
 
@@ -232,6 +233,79 @@ sub stdev{
     return $std;
 }
 
+#Keep track of ALL insertion (positions) for manual null distributions
+my @insertPos; 
+
+#Read in all input data files and put insertions into gene keys for data hash
+my %data;
+foreach my $filename (@files) {
+   print $filename,"\n";
+   open (IN,'<', $filename);
+   my $headerLine=<IN>; #read column names and store in dummy variable
+   while (my $line = <IN>) {
+      chomp $line;
+      my @lines = split(/,/,$line);
+      my $locus = $lines[9]; #gene id (SP_0000)
+      my $w = $lines[12];    #nW
+      my $pos = $lines[0];
+      push (@insertPos,$pos);
+	  #if blank then w=0
+      my $c1 = $lines[2];   #Count at T1
+      my $c2 = $lines[3];   #Count at T2
+      my $avg = ($c1+$c2)/2; 
+       
+      # Skip insertions that don't meet the cutoff for reads
+      if ($avg < $cutoff) { next; } 
+      if ($avg >= $weight_ceiling) { $avg = $weight_ceiling; } 
+	  
+	  #Start empty arrays if first insertion for this gene locus
+	  my @empty;
+      if (!$data{$locus}) {
+        $data{$locus}{w} = [@empty];
+        $data{$locus}{s} = [@empty];
+        $data{$locus}{p} = [@empty];
+      }
+      #Otherwise, add to data already present
+      
+      # List of fitness scores
+      $data{$locus}{w} = [@{$data{$locus}{w}}, $w];
+
+      # List of counts used to generate those fitness scores.
+      $data{$locus}{s} = [@{$data{$locus}{s}}, $avg]; 
+      
+      #List of insertion positions in the gene
+      $data{$locus}{p} = [@{$data{$locus}{p}}, $pos];
+      #later can get UNIQUE insertion positions and total of that mutant
+   }
+   
+   ######TESTING
+
+		#####TESTING
+   close IN;
+}
+my $same=0;
+my $diff=0;
+foreach my $locus (keys %data){
+	my @pos =  @{$data{$locus}{p}};
+	my $first=scalar @pos;
+	#print "\n Unfiltered: $locus\t", scalar @pos,"\n";
+	@pos = uniq sort {$a<=>$b }@{$data{$locus}{p}};
+	my $sec=scalar @pos;
+	#print "\nUnique: $locus\t", scalar @pos,"\n";
+
+	if ($first==$sec){
+	$same++;
+	}
+	else{$diff++;}
+	
+	}
+print "\n\nsame: $same\tdiff: $diff\n\n";
+#TESTINGGGGGG
+#Get unique insertion positions for each gene in the %data hash
+
+
+	
+
 #Set up the null distribution library to determine insertion representation
 my @distLib;
 my $FILE3 = "nullDist.txt";
@@ -311,7 +385,6 @@ else{
 
 }
 
-
 sub pvalue{
     
     #Takes in window count average (countAvg) and number of TAsites 
@@ -328,15 +401,12 @@ sub pvalue{
     while ($i<scalar(@temp) and $temp[$i]==$temp[$rank]){
         $i++;
     }
-
     $rank=$i;
     my $pval=$rank/$N;  
-    return $pval;
-    
-    
+    return $pval;     
 }
-### End of subroutines ####
 
+#If a list of genes to mark was specified then read it in
 my @marked;
 my $marked_set = Set::Scalar->new;
 if ($marked) {
@@ -346,66 +416,7 @@ if ($marked) {
       $marked_set->insert($_);
    }
    close MARKED;
-   #print "Set members: ", $marked_set->members, "\n";
 }
-
-my @insertPos; #keep track of ALL insertion positions. Need this for essential distributions.
-
-# Create Gene Summary File.
-# Contains Gene => [w1,w2,w3,w4,etc.]
-my %data;
-foreach my $filename (@files) {
-   print $filename,"\n";
-   open (IN,'<', $filename);
-   my $headerLine=<IN>; #read the header (column names) line and store in dummy variable
-   while (my $line = <IN>) {
-      chomp $line;
-      my @lines = split(/,/,$line);
-      my $locus = $lines[9]; #gene id (SP_0000)
-      my $w = $lines[12];    #nW
-      my $pos = $lines[0];
-      push (@insertPos,$pos);
-      if (!$w) { $w = 0; }  #For blanks
-      my $c1 = $lines[2];  #Count at T1
-      my $c2 = $lines[3];  #Count at T2
-      my $avg = ($c1+$c2)/2; #Later: change which function to use? C1? AVG(C1+C2)?
-       
-      # Skip cutoff genes.
-      if ($avg < $cutoff) { next; } 
-      if ($avg >= $weight_ceiling) { $avg = $weight_ceiling; } # Maximum weight.
-      
-      my @empty;
-	  
-	  #Start empty arrays if first insertion for this gene locus
-      if (!$data{$locus}) {
-        $data{$locus}{w} = [@empty];
-        $data{$locus}{s} = [@empty];
-        $data{$locus}{p} = [@empty];
-      }
-      #Otherwise, add to data already present
-      
-      # List of fitness scores
-      $data{$locus}{w} = [@{$data{$locus}{w}}, $w];
-
-      # List of counts used to generate those fitness scores.
-      $data{$locus}{s} = [@{$data{$locus}{s}}, $avg]; 
-      
-      #List of insertion positions in the gene
-      $data{$locus}{p} = [@{$data{$locus}{p}}, $pos];
-      #later can get UNIQUE insertion positions and total of that mutant
-   }
-   close IN;
-}
-
-#Get unique insertion positions for each gene in the %data hash
-#foreach my $locus (keys %data){
-	#my @positions = uniq @{$data{$locus}{p}};
-	#
-	
-
-	
-@insertPos = uniq sort { $a <=> $b } @insertPos;
-#@insertPos = uniq @insertPos;
 
 #Store all final gene summary information in a hash
 my %outHash;
@@ -417,7 +428,7 @@ my @features = $refseq->get_SeqFeatures;
 
 my @header=("locus","start","stop","length","strand","gene", "countTA", 
 			"insertions","essPval","avgFit","variance","stdev","stderr",
-			"blank_ws","removed");
+			"total","blank_ws","removed","to_remove");
 if ($marked){
 	push (@header,"marked");
 	}
@@ -451,43 +462,46 @@ foreach my $feature (@features) {
 			#length, strand, geneID, countTA, insertions, essPval, avgFit, 
 			#variance, stdev, stderr, blank_ws, removed
 			
-		my ($average, $variance, $stdev, $sterr,$removed,$insertions) =
-			("NA","NA","NA","NA",0,0);
-
+		my ($average, $variance, $stdev, $sterr,$removed,$total,$insertions,$to_remove) =
+			("NA","NA","NA","NA",0,0,0,0);
+		my ($sum,$nonblank,$avgsum,$blank_ws)=(0,0,0,0,0);
+		
 		if ($data{$locus}) {
-			
-			my $sum=0;
-			my $num=0;
-			my $avgsum = 0;
-			my $blank_ws = 0;
-			my $i=0;
-			
-			#w=fitness value
+			#Go through all of the fitness values that fall in the gene locus
+		    #and count the blank fitness scores (w=0 because no reads at t1/t2)
 			foreach my $w (@{$data{$locus}{w}}) {
-				if (!$w) {$blank_ws++;}
-			  	else {$sum += $w; $num++;}
-			  	$i++;
-			}
-			my $insertions = $num + $blank_ws;
-
-			#Remove blanks from scores if the option flag was specified
-		   	my $to_remove = int($blank_pc * $insertions);
-		   	if ($blank_ws > 0) {
-			  	for (my $i=0; $i < @{$data{$locus}{w}}; $i++) {
-					if ($removed == $to_remove) {last}
-					my $w = ${$data{$locus}{w}}[$i];
-					if (!$w) {
-						$removed++;
-						splice( @{$data{$locus}{w}}, $i, 1);
-						splice( @{$data{$locus}{s}}, $i, 1);
-						$i-=1;
-					}
+				if ($w==0) {
+					$blank_ws++; #blank_ws = blank fitness score
+				}
+			  	else {
+			  		$sum += $w; 
+			  		$nonblank++;
 			  	}
+			  	$total++;
 			}
-				
+			
+			#Remove blanks from scores if the option flag was specified
+			#blank_pc = Percentage of blanks to remove as -b flag 
+		   	if ($blank_pc !=1){
+				$to_remove = int($blank_pc * $total);
+           		if ($blank_ws > 0) {
+           			my @wscores=@{$data{$locus}{w}};
+              		for (my $i=0; $i < @wscores; $i++) {
+                		if ($removed > $to_remove) {last}
+                		my $w = $wscores[$i];
+                		if ($w==0) {
+                    		$removed++;
+                    		splice( @{$data{$locus}{w}}, $i, 1);
+                    		splice( @{$data{$locus}{s}}, $i, 1);
+                    		$i-=1;
+                		}
+              		}
+				}
+			}
+		
 			#Get stats on gene: average fitness, var, stdev, sterr, etc.
 			#Can't do stats if no observations (insertions)
-			if ($num == 0 ) {
+			if ($nonblank == 0 ) {
 				($average, $variance, $stdev, $sterr) = ("NA","NA","NA","NA");
 			}
 			else {	
@@ -506,6 +520,9 @@ foreach my $feature (@features) {
 		
 		#Insertion representation assessment
 		my ($avgInsert,$pval);
+		#How many UNIQUE insertion mutations are in the gene?
+		my @unique=uniq @{$data{$locus}{p}};
+		$insertions=scalar @unique;
 		#If there are TA sites in the gene
 		if ($countTA >0){
 			$avgInsert=sprintf("$round",$insertions/$countTA);
@@ -521,7 +538,7 @@ foreach my $feature (@features) {
 		#Store all of these variables into a summary for the gene
 		@summary = ($locus,$start,$stop,$length,$strand,$gene,$countTA,
 			   		$insertions,$pval,$average,$variance,$stdev,$sterr,
-			   		$blank_ws,$removed); 
+			   		$total,$blank_ws,$removed,$to_remove); 
 			   		
 		#If this gene is in the list of genes to be marked, then mark it
 		if ($marked && $marked_set->contains($locus)) {
