@@ -1,14 +1,11 @@
 #!/usr/bin/perl -w
 
-#Margaret Antonio 16.01.13
-
-#USAGE: perl compGenes.pl <options> [<aggregateFile1.csv aggregateFile2.csv> OR -indir <indir/>]
+#Margaret Antonio 16.08.29
 
 use Data::Dumper;
 use strict;
 use Getopt::Long;
 no warnings;
-#use warnings;
 use diagnostics;
 use File::Path;
 use File::Basename;
@@ -17,7 +14,7 @@ use Statistics::Distributions;
 #ASSIGN INPUTS TO VARIABLES USING FLAGS
 our ($indir,$h,$out,$sortkey,$round,$l);
 GetOptions(
-'d:s' => \$indir,
+'i:s' => \$indir,
 'h' => \$h,
 'o:s' =>\$out,
 's:i' => \$sortkey,
@@ -26,27 +23,51 @@ GetOptions(
 );
 
 sub print_usage() {
-    print "\n";
-    print "compGenes.pl: COMPARE GENES FROM A TN-SEQ EXPERIMENT USING AGGREGATE FILES\n\n";
-    print "DESCRIPTION: Takes two aggregate.pl outputs and compares them by calculating\n";
-    print "the difference in mean fitness, the pval for each gene.\n";
-    print "Example: compare control vs antibiotic, where both from same strain (genome).\n";
-    print "For different strains/genomes, use compStrains.pl\n";
-    print "\nUSAGE: perl compGenes.pl <options> <aggregateFile1.csv aggregateFile2.csv>\n";
-    print "       or -d <directory/> \n\n";
-    print "OPTIONS:\n\n";
-    print " -h\tPrints usage and quits\n";
-    print " -d\tDirectory containing input files. Make sure / is included after name\n";
-    print " -o\tOutput file for comparison data. Default: compFile1File2.csv\n";
-    print " -s\tSort output by this index of the file (indices begin at 0). Default: by mean\n";
+    print "\n####################################################################\n";
+    
+    print "compGenes: compare genes for an organism under different conditions\n\n";
+    print "DESCRIPTION: Takes two aggregate.pl outputs and compares them by\n";
+    print "calculating the difference in mean fitness for each gene.\n";
+    print "Example: compare organism in presence of control vs antibiotic.\n";
+    print "Note: For different strains/genomes, use compStrains.pl\n";
+    
+    print "\nUSAGE:";
+    print "perl compGenes.pl -d inputs/ \n\n";
+    
+    print "REQUIRED:\n";
+    print " -d\tDirectory containing all input files (results files from\n";
+    print "   \tcalc fitness script)\n";
+    print "   \tOR\n";
+    print "   \tIn the command line (without a flag), input the name(s) of\n";
+    print "   \ttwo file containing aggregate gene fitness values. \n\n";
+    
+    print "OPTIONAL:\n";
+    print " -h\tPrints usage and exits program\n";
+    print " -o\tOutput file for comparison data. Default: label1label2.csv\n";
+    print " -s\tSort output by this index of the file (indices begin at 0).\n";
+    print "   \tDefault: by mean\n";
     print " -r\tRound final output numbers to this number of decimals\n";
-    print " -l\tLabels for for compared files. Used for column names and default output file name.\n";
-    print "   \tTwo strings, comma separated (i.e. -l gluc,dapto). Order should match file order.\n";
-    print "\n\n";
+    print " -l\tLabels for input files. Default: filenames\n";
+    print "   \tTwo strings, comma separated (i.e. -l expt1,expt2).\n";
+    print "   \tOrder should match file order.\n";
+    
+    print " \n~~~~Always check that file paths are correctly specified~~~~\n";
+    print "\n##################################################################\n";
+
 }
+
+# Check if help needed or if improper inputs
+
 if ($h){
     print_usage();
     exit;
+}
+
+if (!$indir and (scalar @ARGV==0)){
+	print "\nERROR: Please correctly specify input files or directory\n";
+    print_usage();
+	print "\n";
+	exit;
 }
 
 #THE @files ARRAY WILL CONTAIN INPUT FILE NAMES, EXTRACTED FROM A DIRECTORY (-indir) OR ARGV

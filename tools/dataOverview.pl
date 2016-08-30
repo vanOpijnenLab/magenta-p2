@@ -23,22 +23,26 @@ no warnings;
 sub print_usage() {
 
     print "\n###############################################################\n";
-    print "\nperl dataOverview.pl -i inputs/ -f genome.fasta -r genome.gbk\n";
+    print "dataOverview: outputs basic statistics for tn-seq library files \n\n";
+
+    print "USAGE:\n";
+    print "perl dataOverview.pl -i inputs/ -f genome.fasta -r genome.gbk\n";
         
     print "\nREQUIRED:\n";
-    print "-i\tDirectory containing all input files (results files from \n\tcalc fitness script)\n";
-    print "\t  OR\n";
-    print "\tIn the command line (without a flag), input the name(s) of \n\tthe files containing fitness values for individual \n\tinsertion mutants\n";
-    print "-f\tFasta file for genome\n";
-    print "-r\tThe name of the reference genome file, in GenBank format\n";
+    print " -d\tDirectory containing all input files (results files from\n";
+    print "   \tcalc fitness script)\n";
+    print "   \t  OR\n";
+    print " \tIn the command line (without a flag), input the name(s) of \n";
+    print " \tthe files containing fitness values for individual \n\tinsertion mutants\n";
+    print " -f\tFilename for genome sequence, in fasta format\n";
+    print " -r\tFilename for genome annotation, in GenBank format\n";
 
     print "\nOPTIONAL:\n";
-    print "-l\tSend all output to a log file instead of the terminal\n";
-    print "-h\tPrint usage\n";
-    print "-c\tCutoff average(c1+c2)>c. Default: 15\n";
-    print "-o\tFilename for output\n";
-    print "\n~~~~Always check that file paths are correctly specified~~~~\n";
-    print "\n###############################################################\n";
+    print " -h\tPrint usage\n";
+    print " -c\tCutoff average(c1+c2)>c. Default: 15\n";
+    print " -o\tFilename for output. Default: standard output\n";
+    print " \n~~~~Always check that file paths are correctly specified~~~~\n";
+    print " \n###############################################################\n";
 
 }
 
@@ -50,16 +54,15 @@ sub mean {
     return sum(@_)/@_;
 }
 #ASSIGN INPUTS TO VARIABLES
-our ($cutoff,$fastaFile, $outfile,$help,$ref,$indir,$weight_ceiling,$log);
+our ($cutoff,$fastaFile, $outfile,$help,$ref,$indir,$weight_ceiling);
 GetOptions(
 'r:s' => \$ref,
 'f:s' => \$fastaFile,
-'i:s'=>\$indir,
+'d:s'=>\$indir,
 'c:i'=>\$cutoff,
 'o:s' => \$outfile,
 'h'=> \$help,
 'w:i' => \$weight_ceiling,
-'l' => \$log,
 );
 
 # Set defaults
@@ -88,7 +91,7 @@ if (!$fastaFile or !$ref){
 }
 
 # Redirect STDOUT to log.txt. Anything printed to the terminal will go into the log file
-if ($log){
+if ($outfile){
 	print "\nSending all output to log file\n";
     open (STDOUT, ">>$outfile");
 }
@@ -385,6 +388,4 @@ print "\n$nonGeneIns\tInsertions that are not in genes","\n$percNon% of all inse
 #How many insertions are in genes and how many are in non-gene regions?
 
 
-print "End time: ",get_time();
 
-print "\n\n-----THE END-------\n\n";
