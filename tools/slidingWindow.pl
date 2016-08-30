@@ -1,17 +1,6 @@
 #!/usr/bin/perl -w
 
-#Margaret Antonio 15.12.10
-
-#SLIDING WINDOW: a culmination of fitness calculation, essentiality determination,
-    #and TA site and insertion statistics for automatically generated sliding widnow throughout genome
-
-#perl ../Blueberries/slidingWindow.pl --size 500 --fasta tigr4_genome.fasta --indir 2394_PennG/ --log --ref NC_003028b2.gbk
-#perl ../../Blueberries/slidingWindow.pl --size 500 --fasta ../../0-genome/tigr4_genome.fasta --indir ../T4Dapto/ --log --ref NC_003028b2.gbk
-
-#cpanm Getopt::Long Data::Random List::Util File::Path File::Basename
-#cpanm List::BinarySearch List::BinarySearch::XS List::MoreUtils 
-
-#Margaret:/Volumes/MaggieBack/workspace/9-daptomycin/tester->perl ../../Blueberries/slidingWindow.pl -fasta ../../0-genome/tigr4_genome.fasta -ref ../../0-genome/NC_003028b2.gbk --c grouped_T4D.csv -indir ../T4Dapto/ -outdir cust4_T4D/
+#Margaret Antonio 15.08.129
 
 use strict;
 use Getopt::Long;
@@ -28,61 +17,67 @@ use File::Path;
 use File::Basename;
 use feature qw/say/;
 use autodie;
-
+no warnings;
 use Text::CSV;
 
 #AVAILABLE OPTIONS. WILL PRINT UPON ERROR
 sub print_usage() {
-    print "\nRequired:\n";
-    print "In the command line (without a flag), input the name(s) of the file(s) containing fitness values for individual insertion mutants.\n";
-    print "\n slidingWindow.pl <OPTIONS> <OUTPUT> <--essentials AND --genome> <INPUT CSV FILES>\n\n";
+
+    print "\n####################################################################\n";
+    print "USAGE:\n";
+    print "slidingWindow.pl -d inputs/ -o slidWind_output/          \n";
     
-    print "\nOPTIONS:\n";
-    print "--size \t The size of the sliding window(default=500) \n";
-    print "--step \t The window spacing (default=10) \n";
-    print "--csv \t Name of a file to enter the .csv output for sliding windows.\n";
-    print "--cutoff \tCutoff: Don't include fitness scores with average counts (c1+c2)/2 < x (default: 0)\n";
-    print "--essentials \t Calculate genome region essentiality based on transposon insertion representation\n";
-    print "--outdir\tSpecify name of new directory for all output files\n";
-    print "--log\t Send all output to a log file instead of the terminal\n";
-    print "--indir\t Directory containing all input files (results files from calc fitness script\n";
-    print "--usage\t Print usage\n";
-    print "--tan\t Max number of TA sites in each window---used for creating null distribution library (default: 100)";
+    print "\nREQUIRED:\n";
+    print " -d\tDirectory containing all input files (output files from\n";
+    print "   \tcalcFitness tool)\n";
+    print "   \tOR\n";
+    print "   \tIn the command line (without a flag), input filename(s)\n";
     
+    print "\nOPTIONAL:\n";
+    print " -h\tPrint usage\n";
+    print " -size\tThe size of the sliding window. Default=50\n";
+    print " -step\tThe window spacing. Default=10\n";
+    print " -x\tExclude values with avg. counts less than x where (c1+c2)/2<x\n";
+    print "   \tDefault=15\n";
+    print " -log\tSend all output to a log file instead of the terminal\n";
+    print " -max\tExpected max number of TA sites in a window.\n";
+    print "     \tUsed for creating null distribution library. Default=100\n";
+    print " -o\tSpecify name of new directory for all output files\n";
+    print "   \tDefault=sw_out/\n";
+    print " -w\tDo weighted average for fitness per insertion\n";
+    print " -wc\tInteger value for weight ceiling. Default=50\n";
     
-    print "\nREQUIRED: Must choose at least one type of output:\n";
-    print "--wig\tCreate a wiggle file for viewing in a genome browser. Provide a filename. Also provide genome under --ref\n";
-    print "--txt\t Output all data [start,end,W,count] into a text of bed file.\n";
-    print "--txtg\t If consecutive windows have the same value, then group them into one window. Ouput into txt file or bed file.\n";
-    print "--ref\tThe name of the reference genome file, in GenBank format. Needed for wig and txt file creation\n";
-    print "--sort\tIndex of column to sort by\n";
-    print "--c\tComma separated list of start and end coordinates for custom windows\n";
+    print " \n~~~~Always check that file paths are correctly specified~~~~\n";
+    print "\n##################################################################\n";
+    
+    #print "--wig\tCreate a wiggle file for viewing in a genome browser. Provide a filename.\n";
+    #print "Also provide genome under --ref\n";
+    #print "--txt\t Output all data [start,end,W,count] into a text of bed file.\n";
+    #print "--txtg\t If consecutive windows have the same value,\n";
+    #print "then group them into one window. Ouput into txt file or bed file.\n";
+    #print "--ref\tThe name of the reference genome file, in GenBank format.\n";
+    #print "Needed for wig and txt file creation\n";
+    #print "--c\tComma separated list of start and end coordinates for custom windows\n";
 
 }
 
 
 #ASSIGN INPUTS TO VARIABLES
-our ($round,$random,$txt,$txtg,$cutoff,$wig,$infile, $csv, $step, $h, $outdir,$size,$fasta, $log, $ref_genome,$tan,$indir,$inc,$sortby,$weight_ceiling,$weight,$custom,$wc);
+our ($round,$cutoff,$step, $size, $help, $outdir,$fasta, $log, $ref_genome,$tan,$indir,$weight_ceiling,$weight,$custom);
 GetOptions(
-'wig:s' => \$wig,
 'ref:s' => \$ref_genome,
-'cutoff:i'=>\$cutoff,
+'x:i'=>\$cutoff,
 'in:s' => \$infile,
 'csv:s'  => \$csv,
 'step:i' => \$step,
 'size:i' => \$size,
-'txtg:s' => \$txtg,
-'txt:s' => \$txt,
-'random:s' =>\$random,
 'round:i' =>\$round,
 'fasta:s' => \$fasta,
-'outdir:s' =>\$outdir,
+'o:s' =>\$outdir,
 'log' => \$log,
-'usage' => \$h,
-'tan'=>\$tan,
-'indir:s'=>\$indir,
-'inc:i'=>\$inc,
-'sort:i'=>\$sortby,
+'h' => \$help,
+'max:i'=>\$tan,
+'d:s'=>\$indir,
 'wc:i'=>\$weight_ceiling,
 'w'=>\$weight,
 'c:s'=>\$custom,
@@ -93,17 +88,14 @@ sub get_time() {
     return "$hour:$min:$sec";
 }
 # Just to test out the script opening
-if ($h){
-	print print_usage(),"\n";
+if ($help){
+	print_usage();
 	print "\n";
-	if ($csv){print "CSV output file: ", $csv,"\n";}
-	if ($txt){print "Text file for window data: $txt\n";}
-	if ($txtg){print "Text file for grouped windows: $txtg\n";}
+    exit;
 }
 if (!$round){$round='%.3f';}
-if (!$outdir){$outdir="newout";}
-if (!$inc){$inc=20;}
-if (!$wc){$weight_ceiling=50;}
+if (!$outdir){$outdir="sw_out";}
+if (!$weight_ceiling){$weight_ceiling=50;}
 if (!$cutoff){$cutoff=15;}
 mkpath($outdir);
 
@@ -111,9 +103,6 @@ if ($log){
 	print "\nSending all output to log file\n";
 	# redirect STDOUT to log.txt
     open (STDOUT, ">>$outdir/log.txt");
-}
-if (!$sortby){
-    $sortby=8;
 }
 
 
@@ -369,7 +358,7 @@ sub OneWindow{
                 my ($average, $variance, $stdev, $stderr);
                 
                 if ($num <=1 ) {
-                    ($average, $variance, $stdev, $stderr)=(0.10,0.10,"X","X");
+                    ($average, $variance, $stdev, $stderr)=(0.10,0.10,"NA","NA");
                 }
                 else{
                     if (!$weight) {
@@ -387,8 +376,9 @@ sub OneWindow{
                 return (\@window);
             }
             
-            else{ #Even if there were no insertions, still want window in file for consistent start/end
-                my @window=($Wstart,$Wend,$Wcount,$insertion," ","X","X","X","X");
+            else{ 
+            #Even if there were no insertions, still want window in file for consistent start/end
+                my @window=($Wstart,$Wend,$Wcount,$insertion," ","NA","NA","NA","NA");
                 return (\@window);
             }  	#Because count=0 (i.e. there were no insertion mutants in that window)
         }
@@ -455,7 +445,7 @@ sub customWindow{
                 my ($average, $variance, $stdev, $stderr);
                 
                 if ($num <=1 ) {
-                    ($average, $variance, $stdev, $stderr)=(0.10,0.10,"X","X");
+                    ($average, $variance, $stdev, $stderr)=(0.10,0.10,"NA","NA");
                 }
                 else{
                     if (!$weight) {
@@ -475,7 +465,7 @@ sub customWindow{
             }
             
             else{ #Even if there were no insertions, still want window in file for consistent start/end
-                my @window=($Wstart,$Wend,$Wcount,$insertion," ","X","X","X","X");
+                my @window=($Wstart,$Wend,$Wcount,$insertion," ","NA","NA","NA","NA");
                 return (\@window);
             }  	#Because count=0 (i.e. there were no insertion mutants in that window)
         }
@@ -554,7 +544,7 @@ print "\n---------Assessing essentiality of genome region in each window--------
     my $offset=0;
     my $genPos = index($fasta,'TA',$offset);
 
-while (($genPos != -1) and ($pos!=scalar @insertPos)) { #as long as the TA site is foun
+while (($genPos != -1) and ($pos<scalar @insertPos)) { #as long as the TA site is foun
         my $res=0;
         if ($genPos>$insertPos[$pos]){
             push @unmatched,$insertPos[$pos];
@@ -574,6 +564,7 @@ while (($genPos != -1) and ($pos!=scalar @insertPos)) { #as long as the TA site 
         $genPos = index($fasta, 'TA', $offset);
         $countTA++;    
     }
+
     my $FILE1 = "$outdir/allTAsites.txt";
     open (ALL_TA, ">", $FILE1);
     foreach my $sit(@allTAsites){
@@ -687,17 +678,14 @@ for (my $sitez=1; $sitez<=$tan;$sitez++){
 close DIST;
 
 #SUBROUTINE TO CALCULATE THE P-VALUE OF THE WINDOW INSERTIONS AGAINST THE NULL DISTRIBUTION    
-#---------------------------------------------------------------------------------------------------
-    print "\n In case you were wondering....the size of genome is: ", length($fasta), " bp\n";
+#---------------------------------------------------------------------------------------------
     
-    #Now we have an array called @allTAsites which contains every TAsite position with a 0 next to it for "no insertion".
+    #Now we have an array called @allTAsites which contains every TAsite position 
+    #with a 0 next to it for "no insertion".
     #Now just need to replace 0 with 1 if there IS and insertion at that site
-
     
-    my @newWindows=();
-    my $printNum=0;
-
-print "Start p-value calculation for individual windows: ",get_time(),"\n\n";
+my @newWindows=();
+my $printNum=0;
 
 #my $allWindows=\@allWindows;
 for (my $i=0;$i<scalar @allWindows;$i++){
@@ -743,8 +731,8 @@ foreach (@newWindows){
     push (@entry,$absdev);
     push @expWindows,\@entry;
 }
-@newWindows= sort {$b->[$sortby]<=>$a->[$sortby]} @expWindows;
 
+@newWindows=@expWindows;
 
 #MAKE OUTPUT CSV FILE WITH ESSENTIAL WINDOW CALCULATIONS
 
@@ -871,16 +859,15 @@ if ($txt){
     print fWIG "variableStep chrom=$refname\n";
     foreach my $wigLine(@allWindows){
         my @wigFields=@$wigLine;
-        my $position=$wigFields[0];
-        #while ($position<=$wigFields[1]){
-        print fWIG $position," ",$wigFields[2],"\n";
-        #$position=$position+1;
-        #}
-        #print  WIG $wigFields[0]," ",$wigFields[2],"\n";
+        my $pos=$wigFields[0];
+        my $fit=$wigFields[7];
+        print fWIG $pos," ",$fit,"\n";
     }
     close fWIG;
     print "End wig file creation: ",get_time(),"\n\n";
-    print "If this wig file needs to be converted to a Big Wig, then use USCS program wigToBigWig in terminal: \n \t./wigToBigWig gview/12G.wig organism.txt BigWig/output.bw \n\n";
+    print "If this wig file needs to be converted to a Big Wig,\n";
+    print " then use USCS program wigToBigWig in terminal: \n";
+    print "\t./wigToBigWig gview/12G.wig organism.txt BigWig/output.bw \n\n";
 
 
 #GOING TO MAKE A TEXT FILE FOR BED CONVERSION TO BIGBED, NEED CHROM # IN COLUMN 0
