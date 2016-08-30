@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-#Margaret Antonio 16.04.26
+#Margaret Antonio 16.08.29
 
 use strict;
 use Getopt::Long;
@@ -21,20 +21,24 @@ no warnings;
 
 #AVAILABLE OPTIONS. WILL PRINT UPON ERROR
 sub print_usage() {
-    print "\nRequired:\n";
-    print "In the command line (without a flag), input the name(s) of the file(s) containing fitness values for individual insertion mutants.\n";
-    print "\n perl dataOverview.pl <OPTIONS> --indir path/to/directory/with/results/files \n\n";
-    print "\n Example:\n";
-    print "perl ../Blueberries/dataOverview.pl -i ../9-daptomycin/data/19FGluc/ -f ../0-genome/19F_012469.fasta -r ../0-genome/19F_012469.gbk -l\n";
 
-    print "\nOPTIONS:\n";
-	print "-r\tThe name of the reference genome file, in GenBank format. Needed for wig and txt file creation\n";
-	print "-l\t Send all output to a log file instead of the terminal\n";
-	print "-f\tFasta file for genome\n";
-    print "-i\t Directory containing all input files (results files from calc fitness script\n";
-    print "-h\t Print usage\n";
-    print "-c\t Cutoff average(c1+c2)>c\n";
-    print "-o\t Outfile\n";
+    print "\n###############################################################\n";
+    print "\nperl dataOverview.pl -i inputs/ -f genome.fasta -r genome.gbk\n";
+        
+    print "\nREQUIRED:\n";
+    print "-i\tDirectory containing all input files (results files from \n\tcalc fitness script)\n";
+    print "\t  OR\n";
+    print "\tIn the command line (without a flag), input the name(s) of \n\tthe files containing fitness values for individual \n\tinsertion mutants\n";
+    print "-f\tFasta file for genome\n";
+    print "-r\tThe name of the reference genome file, in GenBank format\n";
+
+    print "\nOPTIONAL:\n";
+    print "-l\tSend all output to a log file instead of the terminal\n";
+    print "-h\tPrint usage\n";
+    print "-c\tCutoff average(c1+c2)>c. Default: 15\n";
+    print "-o\tFilename for output\n";
+    print "\n~~~~Always check that file paths are correctly specified~~~~\n";
+    print "\n###############################################################\n";
 
 }
 
@@ -46,7 +50,7 @@ sub mean {
     return sum(@_)/@_;
 }
 #ASSIGN INPUTS TO VARIABLES
-our ($cutoff,$fastaFile, $outfile,$help,$ref,$indir,$weight_ceiling);
+our ($cutoff,$fastaFile, $outfile,$help,$ref,$indir,$weight_ceiling,$log);
 GetOptions(
 'r:s' => \$ref,
 'f:s' => \$fastaFile,
@@ -55,19 +59,36 @@ GetOptions(
 'o:s' => \$outfile,
 'h'=> \$help,
 'w:i' => \$weight_ceiling,
-
+'l' => \$log,
 );
+
+# Set defaults
 if (!$weight_ceiling){$weight_ceiling=999999;}
 if (!$cutoff){$cutoff=15;}
 
-# If help option is specified then print usage
-if ($help){
-	print print_usage(),"\n";
+# If help option is specified or required files are not specified:
+
+if ($help) {
+    print_usage();
 	print "\n";
+	exit;
+}
+if (!$indir and (scalar @ARGV==0)){
+	print "\nERROR: Please correctly specify input files or directory\n";
+    print_usage();
+	print "\n";
+	exit;
+}
+if (!$fastaFile or !$ref){
+	print "\nERROR: Please correctly specify reference genome fasta and genbank files\n";
+	print "Most genomes (in fasta and gbk format) are available at NCBI\n";
+    print_usage();
+	print "\n";
+	exit;
 }
 
 # Redirect STDOUT to log.txt. Anything printed to the terminal will go into the log file
-if ($outfile){
+if ($log){
 	print "\nSending all output to log file\n";
     open (STDOUT, ">>$outfile");
 }
@@ -305,7 +326,7 @@ print "$maxORF\tLargest ORF\n";
 my ($mintaORF, $maxtaORF) = minmax @allc;
 print "$mintaORF\tFewest # TA sites in an ORF\n";
 print "$maxtaORF\tGreatest # TA sites in an ORF\n";
-print " $blank\tNumber of ORFs that don't have any TA sites\n";
+print "$blank\tNumber of ORFs that don't have any TA sites\n";
 
 
 print "\nGenes using the genbank annotation file\n\n";
@@ -357,7 +378,7 @@ my $totalIns=scalar @insertPos;
 my $percNon=sprintf("%.2f",($nonGeneIns/$totalIns)*100);
 print "Length of a gene\n";
 print "$avgLength\tAverage","\n$minLength\tMininum","\n$maxLength\tMaximum\n";
-print "For insertions in a gene:\n";
+print "\nFor insertions in a gene:\n";
 print "$avgInsGene\tAverage","\n$minInsGene\tMininum","\n$maxInsGene\tMaximum\n";
 print "Number of genes that do not have any insertions: ",$blankGene,"\n";
 print "\n$nonGeneIns\tInsertions that are not in genes","\n$percNon% of all insertions\n";
