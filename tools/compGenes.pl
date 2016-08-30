@@ -44,8 +44,6 @@ sub print_usage() {
     print "OPTIONAL:\n";
     print " -h\tPrints usage and exits program\n";
     print " -o\tOutput file for comparison data. Default: label1label2.csv\n";
-    print " -s\tSort output by this index of the file (indices begin at 0).\n";
-    print "   \tDefault: by mean\n";
     print " -r\tRound final output numbers to this number of decimals\n";
     print " -l\tLabels for input files. Default: filenames\n";
     print "   \tTwo strings, comma separated (i.e. -l expt1,expt2).\n";
