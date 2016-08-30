@@ -32,6 +32,8 @@ sub print_usage() {
     print "   \tcalcFitness tool)\n";
     print "   \tOR\n";
     print "   \tIn the command line (without a flag), input filename(s)\n";
+    print " -fasta\tFilename for genome sequence, in fasta format\n";
+    print " -ref\tFilename for genome annotation, in GenBank format\n";
     
     print "\nOPTIONAL:\n";
     print " -h\tPrint usage\n";
@@ -58,14 +60,12 @@ sub print_usage() {
     #print "--ref\tThe name of the reference genome file, in GenBank format.\n";
     #print "Needed for wig and txt file creation\n";
     #print "--c\tComma separated list of start and end coordinates for custom windows\n";
-
 }
-
 
 #ASSIGN INPUTS TO VARIABLES
 our ($round,$cutoff,$step, $size, $help, $outdir,$fasta, $log, $ref_genome,$tan,$indir,$weight_ceiling,$weight,$custom);
 GetOptions(
-'ref:s' => \$ref_genome,
+
 'x:i'=>\$cutoff,
 'in:s' => \$infile,
 'csv:s'  => \$csv,
@@ -73,6 +73,7 @@ GetOptions(
 'size:i' => \$size,
 'round:i' =>\$round,
 'fasta:s' => \$fasta,
+'ref:s' => \$ref_genome,
 'o:s' =>\$outdir,
 'log' => \$log,
 'h' => \$help,
