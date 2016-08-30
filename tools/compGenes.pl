@@ -35,11 +35,11 @@ sub print_usage() {
     print "perl compGenes.pl -d inputs/ \n\n";
     
     print "REQUIRED:\n";
-    print " -d\tDirectory containing all input files (results files from\n";
-    print "   \tcalc fitness script)\n";
+    print " -d\tDirectory containing all input files (files from\n";
+    print "   \taggregate script)\n";
     print "   \tOR\n";
     print "   \tIn the command line (without a flag), input the name(s) of\n";
-    print "   \ttwo file containing aggregate gene fitness values. \n\n";
+    print "   \ttwo files containing aggregate gene fitness values. \n\n";
     
     print "OPTIONAL:\n";
     print " -h\tPrints usage and exits program\n";

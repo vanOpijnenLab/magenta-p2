@@ -32,35 +32,61 @@ GetOptions(
 
 sub print_usage() {
     print "\n";
-    print "compStrains.pl: COMPARE GENES FROM A TWO TN-SEQ EXPERIMENT\n";
-    print "\t(OF DIFFERENT ORGANISMS/STRAINS (GENOMES)) USING AGGREGATE FILES\n\n";
-    print "DESCRIPTION: Takes two aggregate.pl outputs and compares them by calculating\n";
-    print "the difference in mean fitness, the pval for each gene.\n";
+    print "\n##################################################################\n";
+    print "compStrains.pl: compare genes from a tn-seq experiment\n";
+    print "\tfor two DIFFERENT strains/genomes using aggregate files\n";
+    
+    print "\nDESCRIPTION: Takes two aggregate.pl outputs and compares them by\n";
+    print "calculating the difference in mean fitness.\n";
+    
     print "Example: two strains tested under same condition.\n";
-    print "For same strains (genomes), conversion file not needed. Use compGenes.pl\n";
-    print "\nUSAGE: perl compStrains.pl -c <conversion.csv> <options> \n";
-    print "\t<aggregateFile1.csv aggregateFile2.csv> or -d <directory/> \n\n";
-    print "OPTIONS:\n\n";
-    print " -h\tPrints usage and quits\n";
-    print " -d\tDirectory containing input files. Make sure / is included after name\n";
-    print " -o\tOutput file for comparison data. Default: compFile1File2.csv\n";
-    print " -s\tSort output by this index of the file (indices begin at 0). Default: by mean\n";
+    print "Note: For same strains (genomes), use compGenes.pl\n";
+    
+    print "\nUSAGE:\n";
+    print "perl compStrains.pl -c conversion.csv -d inputs/\n";
+    
+    print "\nREQUIRED:\n";
+    print " -d\tDirectory containing all input files (files from\n";
+    print "   \taggregate fitness script)\n";
+    print "   \tOR\n";
+    print "   \tIn the command line (without a flag), input the name(s) of\n";
+    print "   \ttwo files containing aggregate gene fitness values. \n\n";
+    print " -c\tConversion file: two columns with homologs for both organisms\n";
+
+    print "\nOPTIONAL:\n";
+    print " -h\tPrints usage and exits program\n";
+    print " -o\tOutput file for comparison data. Default: label1label2.csv\n";
+    print " -s\tSort output by this index of the file (indices begin at 0).\n";
+    print "   \tDefault: by mean\n";
     print " -r\tRound final output numbers to this number of decimals\n";
-    print " -l\tLabels for for compared files. Used for column names and default output file name.\n";
-    print "   \tTwo strings, comma separated (i.e. -l gluc,dapto). Order should match file order.\n";
-    print " -c\tConversion file: two columns with homologs for genome1 and genome 2\n";
-    print "\n\n";
+    print " -l\tLabels for input files. Default: filenames\n";
+    print "   \tTwo strings, comma separated (i.e. -l expt1,expt2).\n";
+    print "   \tOrder should match file order.\n";
+	print " \n~~~~Always check that file paths are correctly specified~~~~\n";
+    print "\n##################################################################\n";
 }
 if ($h){
     print_usage();
     exit;
+}
+if (!$indir and (scalar @ARGV==0)){
+	print "\nERROR: Please correctly specify input files or directory\n";
+    print_usage();
+	print "\n";
+	exit;
+}
+if (!$cfile){
+	print "\nERROR: Please correctly specify the required conversion file\n";
+    print_usage();
+	print "\n";
+	exit;
 }
 
 #THE @files ARRAY WILL CONTAIN INPUT FILE NAMES, EXTRACTED FROM A DIRECTORY (-indir) OR ARGV
 my @files;
 if ($indir){
     my $directory="$indir";
-    opendir(DIR, $directory) or die "Couldn't open $directory: $!\n";
+    opendir(DIR, $directory) or (print "Couldn't open $directory: $!\n" and print_usage() and exit);
     my @direct= readdir DIR;
     my $tail=".csv";
     foreach (@direct){
