@@ -123,6 +123,6 @@ for my $pos(sort {$a<=>$b} keys %input){
 }
 close OUT;
 
-die;
+
 
 
