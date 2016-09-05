@@ -7,7 +7,11 @@ MAGenTA is a command-line based tool for Transposon Insertion Sequencing (Tn-Seq
 </break>
 
 </break>
-INSERT WORKFLOW HERE FROM GALAXY
+### Workflow
+
+![alt text](https://github.com/antmarge/magenta/blob/master/figures/tnseq_workflow_160905.png?raw=true "Workflow")
+
+
 
 
 
