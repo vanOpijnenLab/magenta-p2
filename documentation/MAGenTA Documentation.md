@@ -44,7 +44,7 @@ Prior to Tn-seq data analysis it is important to understand the genome-wide scal
 #### USAGE
 
 ```perl
-perl dataOverview.pl -i inputs/ -f genome.fasta -r genome.gbk
+perl dataOverview.pl -d inputs/ -f genome.fasta -r genome.gbk
 ```
     REQUIRED
     -d  Directory containing all input files (results files from calc fitness script)
@@ -100,7 +100,7 @@ Comparative gene analysis for two experiments of the same organism (i.e. One str
 #### Usage
 
 ```perl
-perl compGenes.pl <options> <file1> <file2> 
+perl compGenes.pl <options> <aggregate1.csv> <aggregate2.csv> 
 ```
 
     REQUIRED
@@ -197,7 +197,7 @@ WindowCompare takes results from the SlidingWindow tool and performs a similar c
 #### USAGE
 
 ```perl
-perl compWindows.pl <options> [aggregateFile1.csv aggregateFile2.csv OR -d directory]
+perl compWindows.pl <options> [slidingWindows1.csv slidingWindows2.csv OR -d directory]
 ```
 
     REQUIRED
@@ -256,7 +256,7 @@ MAKE THE OUTPUT PICTURE MORE REAL
 
 
 ***
-### <center>singleVal: single Fitness or insertion count per insertion as for visualization inptut (IGV or GvisTnSeq)</center>
+### <center>SingleVal: single Fitness or insertion count per insertion as for visualization inptut (IGV or GvisTnSeq)</center>
 ***
 
 #### USAGE
@@ -277,19 +277,4 @@ perl singleVal.pl -d inputs/ -v count -n NC_XXX0X
     -o  Output file for comparison data. Default: singleVal.wig
     
     
-***
-### <center>Using multiple MAGenTA tools for a comprehensive analysis</center>
-***
 
-Tn-Seq, coupled with MAGenTA, creates the possibility of comprehensive analysis over annotated and unannotated genomic regions by insertion representation and exact fitness assessments. Fig 3A and 3B in the GvizTnSeq section show the tetracycline resistance genes (SP_1918, SP_1919) were identified as being conditionally important for TIGR4 fitness using the GeneCompare tool. Additionally, the surrounding unannotated regions (~100 bp upstream and ~300 bp downstream) were identified as also being conditionally important for fitness in daptomycin using the SlidingWindow and WindowCompare tools. All four of these regions were easily visualized using the GvisTnSeq functions in R (Fig. 3A). These regions also have biological significance. It has been show that tetracycline resistance genes are important for pathogens, such as Staphylococcus aureus and Streptococcus pneumoniae, in daptomycin resistance. The unannotated upstream region could potentially be a promoter or enhancer that affects transcription. 
-</break>
-
-MAGenTA tools also effectively identify essential regions, which have a statistically underrepresented number of insertions, and gene domains (Fig. 3B). In Taiwan-19F,the SlidingWindow tool identified a single essential ~300 bp region within non-essential gene, (SPT_1238), endo-beta-N-acetylglucosaminidase, which is involved in processing free oligosaccharides in the cytosol.24 The presence of insertions in the gene surrounding this region and the lack of a significant aggregate fitness defect among those insertions indicates that only this domain is essential. An alignment search for the amino acid sequence of SPT_1238 in NCBI Blast revealed the presence of a glucan-binding domain (1,124 bp), which completely overlapped the essential region. The glucan-binding domain is a highly conserved region involved in carbohydrate transport. When performing a comparative strain analysis, we found that the glucan-binding domain in the TIGR4 homolog (SP_0965) is also essential, showing a highly similar insertion distribution as in SPT_1238 (Fig.3B). S. pneumoniae relies exclusively on carbohydrates as a carbon source and uses 30% of its transporters for carbohydrate uptake and several carbohydrate transporters have been shown to be necessary for S. pneumoniae survival and pathogenesis.25 The presence of this single essential domain within a non-essential gene is consistent with literature which suggests the importance of carbohydrate transport but not the endo-beta-N-acetylglucosaminidase protein itself.
-</break>
-
-Upstream of these homologs in TIGR4 and Taiwan-19F are two more sets of homologs: (1) SP_0967 and SPT_1236, which are essential genes and (2) SP_0968 and SPT_1235, of which only SP_0968 appears to be essential while SPT_1235 has a low aggregate fitness (Fig. 3B). 
-
-
-```python
-
-```
