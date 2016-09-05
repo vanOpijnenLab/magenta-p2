@@ -25,15 +25,15 @@ sub print_usage() {
 
     print "\n####################################################################\n";
     print "USAGE:\n";
-    print "slidingWindow.pl -d inputs/ -o slidWind_output/          \n";
+    print "slidingWindow.pl -d inputs/ -o slidWind_output/ -f genome.fasta -r genome.gbk\n";
     
     print "\nREQUIRED:\n";
     print " -d\tDirectory containing all input files (output files from\n";
     print "   \tcalcFitness tool)\n";
     print "   \tOR\n";
     print "   \tIn the command line (without a flag), input filename(s)\n";
-    print " -fasta\tFilename for genome sequence, in fasta format\n";
-    print " -ref\tFilename for genome annotation, in GenBank format\n";
+    print " -f\tFilename for genome sequence, in fasta format\n";
+    print " -r\tFilename for genome annotation, in GenBank format\n";
     
     print "\nOPTIONAL:\n";
     print " -h\tPrint usage\n";
@@ -72,8 +72,8 @@ GetOptions(
 'step:i' => \$step,
 'size:i' => \$size,
 'round:i' =>\$round,
-'fasta:s' => \$fasta,
-'ref:s' => \$ref_genome,
+'f:s' => \$fasta,
+'r:s' => \$ref_genome,
 'o:s' =>\$outdir,
 'log' => \$log,
 'h' => \$help,

@@ -17,7 +17,7 @@ sub print_usage() {
     print "aggregate fitness within a sliding window (specified by size and step).\n";
     
     print "\nUSAGE:\n";
-    print "perl windowFit.pl <OPTIONS> <REQ OUTPUT TYPE(S)> <INPUT FILE(S)>\n\n";
+    print "perl singleVal.pl <OPTIONS> <REQ OUTPUT TYPE(S)> <INPUT FILE(S)>\n\n";
     
     print "\nREQUIRED:\n";
     print " -d\tDirectory containing all input files (files from\n";
