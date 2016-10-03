@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-#Margaret Antonio updated 15.10.18
+#Margaret Antonio updated 16.10.03
 
 use strict;
 use Getopt::Long;
@@ -25,6 +25,10 @@ sub print_usage() {
     print "   \tOR\n";
     print "   \tIn the command line (without a flag), input the name(s) of\n";
     print "   \tfiles containing gene fitness values (output of calcFit). \n\n";
+    print " -x\tCutoff: Don't include fitness scores with average counts (c1+c2)/2 < x (default: 10)\n";
+    print " -b\tBlanks: Exclude -b % of blank fitness scores (scores where c2 = 0) (default: 0 = 0%)\n";
+    print " -w\tUse weighted algorithm to calculate averages, variance, sd, se\n";
+    print " -l\tWeight ceiling: maximum value to use as a weight (default: 50)\n";
     
     print "OPTIONAL:\n";
     print " -h\tPrints usage and exits program\n";
@@ -41,14 +45,16 @@ sub print_usage() {
 
 
 #ASSIGN INPUTS TO VARIABLES
-our ($cutoff,$help,$ref_genome,$indir,$out,$name,$val);
+our ($help,$ref_genome,$indir,$out,$name,$val,$cutoff,$blank_pc,$weight_ceiling);
 GetOptions(
-'cutoff:i'=>\$cutoff,
 'd:s' => \$indir,
 'h'=>\$help,
 'v:s' =>\$val,
 'o:s' =>\$out,
 'n:s' =>\$name,
+'x:i' =>\$cutoff,
+'b:i' =>\$blank_pc,
+'l:i' =>\$weight_ceiling,
 );
 
 sub get_time() {
@@ -67,191 +73,175 @@ if (!$indir and (scalar @ARGV==0)){
 	exit;
 }
 
+#ADDED BY MLA allows input to be directory---good for inputting L1-L6
+my @files;
+
+if ($indir){
+    my $directory=$indir;
+    print "Input directory: ", $directory,"\n";
+    
+    opendir(DIR, $directory) or die "couldn't open $directory: $!\n";
+    my @direct= readdir DIR;
+    my $tail=".csv";
+    foreach (@direct){
+        if (index($_, $tail) != -1){
+            $_=$indir.$_;
+            push (@files,$_);
+        }
+    }
+    closedir DIR;
+}
+else{
+    @files=@ARGV;
+}
+
 #SET DEFAULTS
-if (!$cutoff){$cutoff=15}
+if (!$cutoff){$cutoff=10}
+if (!$blank_pc){$blank_pc=0}
+if (!$weight_ceiling){$weight_ceiling=50}
+if (!$out){$out="singleVal.csv"}
 if (!$name){$name="genome"}
 
-if ($val eq "count"){
+# Returns mean, variance, sd, se
+sub average {
+    my $scoreref = shift @_;
+    my @scores = @{$scoreref};
+    
+    my $sum=0;
+    my $num=0;
+    
+    # Get the average.
+    foreach my $w (@scores) {
+        $sum += $w;
+        $num++;
+    }
+    my $average= $sum/$num;
+    my $xminusxbars = 0;
+    
+    # Get the variance.
+    foreach my $w (@scores) {
+        $xminusxbars += ($w-$average)**2;
+    }
+    my $variance = (1/($num-1)) * $xminusxbars;
+    my $sd = sqrt($variance);
+    my $se = $sd / sqrt($num);
+    
+    return ($average, $variance, $sd, $se);
+    
+}
 
-		my $rowCount=-1;
-		my $last;
-		my @unsorted;
+# Takes two parameters, both hashrefs to lists.
+# 1) hashref to list of scores
+# 2) hashref to list of weights, equal in length to the scores.
+sub weighted_average {
+    
+    my $scoreref = shift @_;
+    my $weightref = shift @_;
+    my @scores = @{$scoreref};
+    my @weights = @{$weightref};
+    
+    my $sum=0;
+    my ($weighted_average, $weighted_variance)=(0,0);
+    my $v2;
+    
+    # Go through once to get total, calculate V2.
+    for (my $i=0; $i<@weights; $i++) {
+        $sum += $weights[$i];
+        $v2 += $weights[$i]**2;
+    }
+    if ($sum == 0) { return 0; } # No scores given?
+    
+    my $scor = join (' ', @scores);
+    my $wght = join (' ', @weights);
+    
+    # Now calculated weighted average.
+    my ($top, $bottom) = (0,0);
+    for (my $i=0; $i<@weights; $i++) {
+        $top += $weights[$i] * $scores[$i];
+        $bottom += $weights[$i];
+    }
+    $weighted_average = $top/$bottom;
+    #print "WA: $weighted_average\n";
+    
+    ($top, $bottom) = (0,0);
+    # Now calculate weighted sample variance.
+    for (my $i=0; $i<@weights; $i++) {
+        $top += ( $weights[$i] * ($scores[$i] - $weighted_average)**2);
+        $bottom += $weights[$i];
+    }
+    $weighted_variance = $top/$bottom;
+    
+    my $weighted_stdev = sqrt($weighted_variance);
+    my $weighted_stder = $weighted_stdev / sqrt(@scores);  # / length scores.
+    
+    return ($weighted_average, $weighted_variance, $weighted_stdev, $weighted_stder);
+}
 
-		# EXTRACT INPUT FILES
-		my @files;
-		if ($indir){
-			my $directory="$indir";
-			opendir(DIR, $directory) or die "couldn't open $directory: $!\n";
-			my @direct= readdir DIR;
-			my $tail=".csv";
-			foreach (@direct){
-				if (index($_, $tail) != -1){
-					$_=$indir.$_;
-					push (@files,$_);
-				}
-			}
-			closedir DIR;
-		}
-		else{
-			@files=@ARGV;
-		}
+my %pos_summary;
 
-		# READ INPUT FILES
 
-		my $num=scalar @files;
-		print "\nNumber of files in csv: ", $num,"\n";
-
-		my %select; 
-		my %input;
-
-		for (my $i=0; $i<$num; $i++){   
-			my $file=$files[$i];
-			print "File #",$i+1,"\t",$file,"\n";
-	
-			open(DATA,'<', $file) or die "Could not open '$file'";
-	
-			my $dummy=<DATA>;
-			while(my $line=<DATA>){
-			chomp($line);
-			my @fields=split(",",$line);
-			my $pos=int($fields[0]);
-			my $c2=int($fields[3]);
-			if (exists $input{$pos}){
-				$input{$pos}+=$c2;
-				}
-			else{
-				$input{$pos}=$c2;
-				}
-			}
-			close DATA; 
-		}
-
-		# OUTPUT A WIG FILE WTH POS AND COUNT
-        if (!$out){$out="singleCount.wig"}
+foreach my $filename (@files) {
+    print "\n",$filename,"\n";
+    open IN, $filename;
+    my %hash;
+    while (my $line = <IN>) {
+        chomp $line;
+        my @lines = split(/,/,$line);
+        my $pos = $lines[0];
+        my $w = $lines[12];
+        if ($w and $w eq 'nW') {next;}
+        if (!$w) { $w = 0 } # For blanks
+        my $c1 = $lines[2];
+        my $c2 = $lines[3];
+        my $avg = ($c1+$c2)/2; # Later: change which function to use? C1? AVG(C1+C2)?
+        if ($avg < $cutoff) { next; } # Skip cutoff genes.
+        if ($avg >= $weight_ceiling) { $avg = $weight_ceiling; } # Maximum weight.
         
-		open (OUT,'>',$out);
-
-		print OUT "variableStep\tchrom=chrN\n";
-		for my $pos(sort {$a<=>$b} keys %input){
-			print OUT $pos, "\t",$input{$pos},"\n";
-		}
-		close OUT;
+        my @empty;
+        if (!$pos_summary{$pos}) {
+            $pos_summary{$pos}{w} = [@empty];
+            $pos_summary{$pos}{s} = [@empty];
+        }
+        $pos_summary{$pos}{w} = [@{$pos_summary{$pos}{w}}, $w];  # List of Fitness scores.
+        $pos_summary{$pos}{s} = [@{$pos_summary{$pos}{s}}, $avg]; # List of counts used to generate those fitness scores.
+    }
+    close IN;
+    
 }
-##########################################################################
 
-else{
+open SUMMARY, ">",$out;
 
-		#CREATE AN ARRAY OF DATA FROM INPUT CSV FILE(S)
-		print "\nStart input array ",get_time(),"\n";
 
-		my $rowCount=-1;
-		my $last;
-		my @unsorted;
+    print SUMMARY "pos,fitness,ins_count,fitness_sd,fitness_se\n";
+    # Now print out summary stats.
+    foreach my $key (sort {$a<=>$b} keys %pos_summary) {
+        if (!$key) {next}
+        my $sum=0;
+        my $num=0;
+        my $avgsum = 0;
+        
+        # Get the average.
+        foreach my $w (@{$pos_summary{$key}{w}}) {
+            $sum += $w;
+            $num++;
+        }
+        my $average= $sum/$num;
+        my $xminusxbars = 0;
+        
+        # Get the standard deviation.
+        foreach my $w (@{$pos_summary{$key}{w}}) {
+            $xminusxbars += ($w-$average)**2;
+        }
+        my ($sd, $se) = ('','');
+        if ($num > 1) {
+            $sd = sqrt($xminusxbars/($num-1));
+            $se = $sd / sqrt($num);
+        }
+        
+        print SUMMARY "$key,$average,$num,$sd,$se\n";
 
-		my @files;
-		if ($indir){
-			my $directory="$indir";
-			opendir(DIR, $directory) or die "couldn't open $directory: $!\n";
-			my @direct= readdir DIR;
-			my $tail=".csv";
-			foreach (@direct){
-				if (index($_, $tail) != -1){
-					$_=$indir.$_;
-					push (@files,$_);
-				}
-			}
-			closedir DIR;
-		}
-		else{
-			@files=@ARGV;
-		}
+    }
 
-		my $num=scalar @files;
-		print "\nNumber of files in csv: ", $num,"\n";
 
-		my %select; #this is a hash to store insertion position and fitness value at that position for each file (library)
-
-		for (my $i=0; $i<$num; $i++){   #Read files from ARGV---loops once for each file in ARGV
-			my $file=$files[$i];
-			open(DATA,'<', $file) or (print "Could not open '$file'\n" and print_usage() and exit);
-			print "File #",$i+1,"\t",$file,"\n";
-			my $dummy=<DATA>;
-			while (my $line = <DATA>) {
-				chomp $line;
-				my @fields=split(",",$line);
-				my $w = $fields[12];
-				if (!$w or $w eq"\n"){
-					next;
-				} 
-				# For blanks
-				else{
-					my $c1 = $fields[2];
-					my $c2 = $fields[3];
-					my $avg = ($c1+$c2)/2;
-					if ($avg < $cutoff) {
-						next;
-				
-					} # Skip cutoff genes.
-					else {  #This is a good value and should be added to the hash
-						my $pos=int($fields[0]);
-						$w=sprintf("%.2f",$w);
-						if(!exists $select{$pos}){
-						#print $pos;
-							my @fits;
-							push(@fits,"1");
-							for(my $j=0;$j<$i-1;$j++){
-								push (@fits,"0");
-							}
-							push (@fits,$w);
-							$select{$pos}=\@fits;
-						}
-						else{
-							my @fits=@{$select{$pos}};
-							for (my $j=scalar @fits+1;$j<$i;$j++){
-								push (@fits,"0");
-							}
-							push (@fits,$w);
-							$select{$pos}=\@fits;
-						}
-					}
-				}
-			}
-			close DATA;
-		}
-		##### FINISHED READING INPUT FILES
-
-		foreach my $val(values %select){
-			if (scalar @$val <$num+1){
-				for (my $j=scalar @$val;$j<$num+1;$j++){
-					push (@$val,"0");
-				}
-			}
-		}
-
-		#### DEFAULT OUTPUT	
-		if (!$out){
-			$out="singleFit.wig";
-			}
-	
-		#### OUTPUT SELECTED VALUE
-		open OUT2,'>', $out;
-	    print OUT2 "variableStep\tchrom=chrN\n";
-
-		for my $entry (sort {$a<=>$b} keys %select) {
-			print OUT2 $entry,"\t",$entry+1,"\t";
-			my @entryFits=@{$select{$entry}};
-			my $sum=0; my $count=0;    
-			foreach (@entryFits){
-				if ($_!=0){
-					$count++;
-					$sum+=$_;
-				}
-			}
-			my $avgFit=sprintf("%.2f",$sum/$count);
-			print OUT2 $avgFit,"\n";
-		}
-		close OUT2;
-	
-
-}
+close SUMMARY;
 
