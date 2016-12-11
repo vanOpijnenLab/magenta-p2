@@ -90,7 +90,7 @@ Weight ceiling: This value lets you set a weight ceiling for the weights of fitn
 
 Cutoff3: This value lets you ignore the fitness scores of any insertion locations with an average count (the number of counts from t1 and t2 divided by 2) less than it.
 
-Blanks: This value lets you exclude a % of blank fitness scores (scores with a fitness of 0) from your calculations. It should be entered as a float (e.g. 0.10 would be 10%) if entered by hand, or you can use the blank % calculated from the normalization genes by calc_fit by entering its txt output file
+Bottleneck value: The percentage of insertions randomly lost, which will be discounted for all genes (for example, 20% would be entered as 0.20; default 0 if entered by hand). You can just use the blank % calculated from the normalization genes by calc_fit by entering its txt output file
 
 The name of your output file: self-explanatory. Remember to have it end in ".csv".
 
