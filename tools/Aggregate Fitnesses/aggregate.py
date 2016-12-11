@@ -22,7 +22,7 @@ def print_usage():
 	print "-c" + "\t\t" + "Check for missing genes in the data set - provide a reference genome in genbank format. Missing genes will be sent to stdout." + "\n"
 	print "-m" + "\t\t" + "Place a mark in an extra column for this set of genes. Provide a file with a list of genes seperated by newlines." + "\n"
 	print "-x" + "\t\t" + "Cutoff: Don't include fitness scores with average counts (c1+c2)/2 < x (default: 0)" + "\n"
-	print "-b" + "\t\t" + "Blanks: Exclude -b % of blank fitness scores (scores where c2 = 0) (default: 0 = 0%)" + "\n"
+	print "-b" + "\t\t" + "Bottleneck value: The percentage of insertions randomly lost, which will be discounted for all genes (for example, 20% would be entered as 0.20; default 0.0)" + "\n"
 	print "-f" + "\t\t" + "An in-between file carrying information on the blank count found from calc_fitness or consol_fitness; one of two ways to pass a blank count to this script" + "\n"
 	print "-w" + "\t\t" + "Use weighted algorithm to calculate averages, variance, sd, se" + "\n"
 	print "-l" + "\t\t" + "Weight ceiling: maximum value to use as a weight (default: 999,999)" + "\n"
