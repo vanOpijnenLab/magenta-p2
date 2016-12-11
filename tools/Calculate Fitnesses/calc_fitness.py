@@ -1,4 +1,3 @@
-# A translation of calc_fitness.pl into python! For analysis of Tn-Seq.
 # This script requires BioPython, which in turn has a good number of dependencies (some optional but very helpful).
 # How to install BioPython and a list of its dependencies can be found here: http://biopython.org/DIST/docs/install/Installation.html
 # K. McCoy
