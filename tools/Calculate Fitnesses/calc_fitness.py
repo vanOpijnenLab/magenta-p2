@@ -29,7 +29,7 @@ def print_usage():
 	print "-cutoff2" + "\t\t" + "Discard any positions within the normalization genes where the average of counted transcripts at time 0 and time 1 is below this number (default 10)" + "\n"
 	print "-strand" + "\t\t" + "Use only the specified strand (+ or -) when counting transcripts (default: both)" + "\n"
 	print "-normalize" + "\t" + "A file that contains a list of genes that should have a fitness of 1 - used for normalization and bottleneck calculations." + "\n"
-	print "-b" + "\t" + "Calculate bottleneck value from all genes (rather than only normalization genes)" + "\n"
+	print "-b" + "\t" + "Calculate bottleneck value (the percentage of insertions randomly lost) from all genes (rather than only normalization genes)" + "\n"
 	print "-maxweight" + "\t" + "The maximum weight a transposon gene can have in normalization calculations" + "\n"
 	print "-multiply" + "\t" + "Multiply all fitness scores by a certain value (e.g., the fitness of a knockout). You should normalize the data." + "\n"
 	print "-ef" + "\t\t" + "Exclude insertions that occur in the first N amount (%) of gene--becuase may not affect gene function." + "\n"
