@@ -18,7 +18,7 @@
             "name": "Input dataset collection", 
             "outputs": [], 
             "position": {
-                "left": 568, 
+                "left": 231.5, 
                 "top": 218
             }, 
             "tool_errors": null, 
@@ -84,7 +84,7 @@
                 }
             ], 
             "position": {
-                "left": 536.5, 
+                "left": 200, 
                 "top": 292
             }, 
             "post_job_actions": {
@@ -98,7 +98,7 @@
             }, 
             "tool_errors": null, 
             "tool_id": "toolshed.g2.bx.psu.edu/repos/lparsons/cutadapt/cutadapt/1.6", 
-            "tool_state": "{\"count\": \"\\\"1\\\"\", \"error_rate\": \"\\\"0.1\\\"\", \"match_read_wildcards\": \"\\\"False\\\"\", \"paired_end\": \"{\\\"paired_end_boolean\\\": \\\"False\\\", \\\"__current_case__\\\": 1}\", \"__page__\": 0, \"output_params\": \"{\\\"output_type\\\": \\\"default\\\", \\\"__current_case__\\\": 0}\", \"__rerun_remap_job_id__\": null, \"overlap\": \"\\\"3\\\"\", \"front_adapters\": \"[]\", \"input\": \"null\", \"no_indels\": \"\\\"False\\\"\", \"anywhere_adapters\": \"[]\", \"adapters\": \"[{\\\"__index__\\\": 0, \\\"adapter_source\\\": {\\\"adapter\\\": \\\"CCCCCCCCCCCCCCCCCCCCCCCCCC\\\", \\\"adapter_source_list\\\": \\\"user\\\", \\\"__current_case__\\\": 0, \\\"adapter_name\\\": \\\"C tail\\\"}}]\", \"read_modification_params\": \"{\\\"read_modification\\\": \\\"none\\\", \\\"__current_case__\\\": 0}\", \"output_filtering_options\": \"{\\\"min\\\": \\\"15\\\", \\\"max\\\": \\\"0\\\", \\\"discard_untrimmed\\\": \\\"False\\\", \\\"mask_adapter\\\": \\\"False\\\", \\\"no_trim\\\": \\\"False\\\", \\\"__current_case__\\\": 1, \\\"output_filtering\\\": \\\"filter\\\", \\\"discard\\\": \\\"False\\\"}\"}", 
+            "tool_state": "{\"count\": \"\\\"1\\\"\", \"error_rate\": \"\\\"0.0\\\"\", \"match_read_wildcards\": \"\\\"False\\\"\", \"paired_end\": \"{\\\"paired_end_boolean\\\": \\\"False\\\", \\\"__current_case__\\\": 1}\", \"__page__\": 0, \"output_params\": \"{\\\"output_type\\\": \\\"default\\\", \\\"__current_case__\\\": 0}\", \"__rerun_remap_job_id__\": null, \"overlap\": \"\\\"3\\\"\", \"front_adapters\": \"[]\", \"input\": \"null\", \"no_indels\": \"\\\"False\\\"\", \"anywhere_adapters\": \"[]\", \"adapters\": \"[{\\\"__index__\\\": 0, \\\"adapter_source\\\": {\\\"adapter\\\": \\\"CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC\\\", \\\"adapter_source_list\\\": \\\"user\\\", \\\"__current_case__\\\": 0, \\\"adapter_name\\\": \\\"\\\"}}]\", \"read_modification_params\": \"{\\\"read_modification\\\": \\\"none\\\", \\\"__current_case__\\\": 0}\", \"output_filtering_options\": \"{\\\"min\\\": \\\"1\\\", \\\"max\\\": \\\"0\\\", \\\"discard_untrimmed\\\": \\\"True\\\", \\\"mask_adapter\\\": \\\"False\\\", \\\"no_trim\\\": \\\"False\\\", \\\"__current_case__\\\": 1, \\\"output_filtering\\\": \\\"filter\\\", \\\"discard\\\": \\\"False\\\"}\"}", 
             "tool_version": "1.6", 
             "type": "tool", 
             "user_outputs": [], 
@@ -123,13 +123,13 @@
                 }
             ], 
             "position": {
-                "left": 538.5, 
-                "top": 818.5
+                "left": 203, 
+                "top": 824
             }, 
             "post_job_actions": {
                 "RenameDatasetActionoutput_file": {
                     "action_arguments": {
-                        "newname": "#{input_file | basename}_groomed.fastq"
+                        "newname": "#{input | basename}_groomed.fastq"
                     }, 
                     "action_type": "RenameDatasetAction", 
                     "output_name": "output_file"
@@ -141,7 +141,7 @@
             "tool_version": "1.0.4", 
             "type": "tool", 
             "user_outputs": [], 
-            "uuid": "94467e64-d48d-4157-ad4c-0042fbb3e02a"
+            "uuid": "90602684-976b-4f8e-aff8-2ba8149ca573"
         }, 
         "3": {
             "annotation": "", 
@@ -162,8 +162,8 @@
                 }
             ], 
             "position": {
-                "left": 585.5, 
-                "top": 972
+                "left": 253, 
+                "top": 975
             }, 
             "post_job_actions": {
                 "RenameDatasetActionoutput_file": {
@@ -176,7 +176,7 @@
             }, 
             "tool_errors": null, 
             "tool_id": "toolshed.g2.bx.psu.edu/repos/devteam/fastq_filter/fastq_filter/1.0.0", 
-            "tool_state": "{\"__page__\": 0, \"max_num_deviants\": \"\\\"0\\\"\", \"paired_end\": \"\\\"False\\\"\", \"input_file\": \"null\", \"__rerun_remap_job_id__\": null, \"min_size\": \"\\\"1\\\"\", \"max_quality\": \"\\\"0.0\\\"\", \"min_quality\": \"\\\"8.0\\\"\", \"max_size\": \"\\\"0\\\"\", \"fastq_filters\": \"[]\"}", 
+            "tool_state": "{\"__page__\": 0, \"max_num_deviants\": \"\\\"0\\\"\", \"paired_end\": \"\\\"False\\\"\", \"input_file\": \"null\", \"__rerun_remap_job_id__\": null, \"min_size\": \"\\\"1\\\"\", \"max_quality\": \"\\\"0.0\\\"\", \"min_quality\": \"\\\"0.0\\\"\", \"max_size\": \"\\\"0\\\"\", \"fastq_filters\": \"[]\"}", 
             "tool_version": "1.0.0", 
             "type": "tool", 
             "user_outputs": [], 
@@ -201,8 +201,8 @@
                 }
             ], 
             "position": {
-                "left": 587.41668701171875, 
-                "top": 1100.4166259765625
+                "left": 247.91668701171875, 
+                "top": 1112.4166870117188
             }, 
             "post_job_actions": {
                 "RenameDatasetActionoutput": {
@@ -260,8 +260,8 @@
                 }
             ], 
             "position": {
-                "left": 545.41668701171875, 
-                "top": 1220.4166259765625
+                "left": 202.91668701171875, 
+                "top": 1234.4166870117188
             }, 
             "post_job_actions": {
                 "RenameDatasetActionoutputM": {
@@ -281,5 +281,5 @@
             "uuid": "555f9cf3-57ee-4bde-81ef-ad374b58066e"
         }
     }, 
-    "uuid": "10ce11d1-7842-46ae-95fa-fa625f0f713e"
+    "uuid": "2e9b4573-3c80-44c9-a420-9d94327c649d"
 }
